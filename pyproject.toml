@@ -11,6 +11,7 @@ ltdetr = ["lightly-train"]
 localizer = ["geographiclib", "scipy"]
 mavsdk = ["mavsdk>=4"]
 stitcher = ["piexif"]
+gcs = ["aiohttp"]
 
 [build-system]
 requires = ["setuptools>=61"]
