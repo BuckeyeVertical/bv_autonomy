@@ -9,7 +9,7 @@ import numpy as np
 class GeoPoint:
     lat: float
     lon: float
-    alt_amsl: float          # meters above sea level
+    alt: float               # meters above the ground; Terrain.msl() gives it above sea level
 
 
 @dataclass

@@ -19,24 +19,22 @@ class GimbalNadirLocalizer(Localizer):
     """Projects the center of a detection's box onto flat ground.
 
     The gimbal keeps the camera level, so the drone's roll and pitch never reach it:
-    only the drone's yaw and position are used. The ground is flat at ground_amsl.
+    only the drone's yaw and position are used. The ground is treated as flat at the
+    drone's height above it, as bv_core did with the altitude above home.
     """
 
-    def __init__(self, ground_amsl: float, mount_xyz: tuple[float, float, float] = DEFAULT_MOUNT_XYZ):
+    def __init__(self, mount_xyz: tuple[float, float, float] = DEFAULT_MOUNT_XYZ):
         """
         Args:
-            ground_amsl: Ground height above sea level, in meters. bv_core used the
-                altitude above home, which is the same thing with home as the ground.
             mount_xyz: Camera mount as extrinsic x, y, z Euler angles in radians,
                 from the camera frame (z along the optical axis) to the drone's level body frame.
         """
-        self._ground_amsl = ground_amsl
         self._mount = Rotation.from_euler("xyz", mount_xyz)
 
     def locate(self, detection: Detection) -> GeoPoint | None:
         frame = detection.frame
         k = frame.intrinsics
-        height = frame.pose.position.alt_amsl - self._ground_amsl
+        height = frame.pose.position.alt
         if height <= 0:
             return None
 
@@ -62,5 +60,5 @@ class GimbalNadirLocalizer(Localizer):
         start = frame.pose.position
         azimuth = math.degrees(math.atan2(east, north))
         end = Geodesic.WGS84.Direct(start.lat, start.lon, azimuth, math.hypot(east, north))
-        return GeoPoint(lat=end["lat2"], lon=end["lon2"], alt_amsl=self._ground_amsl)
+        return GeoPoint(lat=end["lat2"], lon=end["lon2"], alt=0.0)
 

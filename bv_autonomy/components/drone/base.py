@@ -14,8 +14,8 @@ class Drone(ABC):
     async def disarm(self) -> None: ...
 
     @abstractmethod
-    async def takeoff(self, alt_agl: float) -> None:
-        """Climb to alt_agl meters above the ground. Finishes once at that altitude."""
+    async def takeoff(self, alt: float) -> None:
+        """Climb to alt meters above the ground. Finishes once at that altitude."""
 
     @abstractmethod
     async def goto(self, point: GeoPoint, speed: float | None = None) -> None:
@@ -41,11 +41,7 @@ class Drone(ABC):
 
     @abstractmethod
     def position(self) -> GeoPoint:
-        """Latest known position, altitude above sea level."""
-
-    @abstractmethod
-    def altitude_agl(self) -> float:
-        """Meters above the ground."""
+        """Latest known position."""
 
     @abstractmethod
     def heading(self) -> float:

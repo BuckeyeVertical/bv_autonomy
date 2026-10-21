@@ -1,0 +1,15 @@
+from abc import ABC, abstractmethod
+
+from bv_autonomy.types import GeoPoint
+
+
+class Terrain(ABC):
+    """Ground height, for turning altitudes above the ground into altitudes above sea level."""
+
+    @abstractmethod
+    def ground_msl(self, lat: float, lon: float) -> float:
+        """Ground height above sea level at this point, in meters."""
+
+    def msl(self, point: GeoPoint) -> float:
+        """The point's altitude above sea level, in meters."""
+        return self.ground_msl(point.lat, point.lon) + point.alt
