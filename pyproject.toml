@@ -10,6 +10,7 @@ opencv = ["opencv-python"]
 ltdetr = ["lightly-train"]
 localizer = ["geographiclib", "scipy"]
 mavsdk = ["mavsdk>=4"]
+stitcher = ["piexif"]
 
 [build-system]
 requires = ["setuptools>=61"]
