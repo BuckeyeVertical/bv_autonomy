@@ -20,13 +20,6 @@ uv venv --python 3.12
 uv pip install -e ".[opencv,ltdetr,localizer,mavsdk,stitcher,gcs]"
 ```
 
-Put the LT-DETR weights (`ltdetr.pt`) in `bv_autonomy/models/`. The file is too big for
-git, so get it from the team drive.
-
-Keep this folder layout. The code finds the dashboard (`bv_gcs/web/dist`) and the weights
-from where `bv_autonomy` is, so no paths need changing, and run output goes in
-`bv_autonomy/output/`.
-
 ### bv_bevy
 
 The simulator: PX4 and the 3D world the drone's camera sees. Follow the setup in
@@ -34,7 +27,7 @@ The simulator: PX4 and the 3D world the drone's camera sees. Follow the setup in
 from the `bv_bevy` folder, in two terminals, PX4 first:
 
 ```bash
-./px4.sh forest
+./px4.sh --prebuilt forest
 ```
 
 ```bash

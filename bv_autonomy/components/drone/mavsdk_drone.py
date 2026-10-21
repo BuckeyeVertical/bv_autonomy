@@ -30,10 +30,11 @@ class MavsdkDrone(Drone):
     flying what it was told. Call hold(), land() or return_home() to stop it.
     """
 
-    def __init__(self, address: str = "udpout://127.0.0.1:14580"):
+    def __init__(self, address: str = "udpin://0.0.0.0:14540"):
         """
         Args:
-            address: MAVSDK connection URL. The default reaches bv_bevy's Docker SITL from the host.
+            address: MAVSDK connection URL. The default listens where PX4 sends to API programs,
+                which bv_bevy's SITL does; on the aircraft it's e.g. "serial:///dev/ttyTHS1:921600".
         """
         self._address = address
         self._mavsdk: Mavsdk | None = None
