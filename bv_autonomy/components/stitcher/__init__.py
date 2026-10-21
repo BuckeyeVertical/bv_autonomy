@@ -1,6 +1,7 @@
 from .base import Stitcher
+from .fake_stitcher import FakeStitcher
 
-__all__ = ["Stitcher", "OpencvStitcher", "OdmStitcher"]
+__all__ = ["Stitcher", "FakeStitcher", "OpencvStitcher", "OdmStitcher"]
 
 
 def __getattr__(name: str):

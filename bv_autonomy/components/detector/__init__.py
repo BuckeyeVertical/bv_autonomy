@@ -1,6 +1,7 @@
 from .base import Detector
+from .fake_detector import FakeDetector
 
-__all__ = ["Detector", "LtdetrDetector"]
+__all__ = ["Detector", "FakeDetector", "LtdetrDetector"]
 
 
 def __getattr__(name: str):

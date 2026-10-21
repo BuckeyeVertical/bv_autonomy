@@ -1,6 +1,7 @@
 from .base import Camera
+from .fake_camera import FakeCamera
 
-__all__ = ["Camera", "BevyCamera", "GstreamerCamera", "Rx0Camera"]
+__all__ = ["Camera", "FakeCamera", "BevyCamera", "GstreamerCamera", "Rx0Camera"]
 
 
 def __getattr__(name: str):
