@@ -15,7 +15,9 @@ class GeoPoint:
 @dataclass
 class Pose:
     position: GeoPoint
-    roll: float              # radians
+    # Radians, aircraft convention (as MAVSDK and PX4 report it): yaw 0 is north and
+    # increases clockwise, pitch is positive nose up, roll is positive right wing down.
+    roll: float
     pitch: float
     yaw: float
     time: float              # one clock everywhere

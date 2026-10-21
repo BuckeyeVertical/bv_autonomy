@@ -8,6 +8,7 @@ dependencies = ["numpy"]
 # Not a hard dependency: the Jetson uses its system OpenCV, built with GStreamer.
 opencv = ["opencv-python"]
 ltdetr = ["lightly-train"]
+localizer = ["geographiclib", "scipy"]
 
 [build-system]
 requires = ["setuptools>=61"]
