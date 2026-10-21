@@ -18,8 +18,12 @@ class Drone(ABC):
         """Climb to alt meters above the ground. Finishes once at that altitude."""
 
     @abstractmethod
-    async def goto(self, point: GeoPoint, speed: float | None = None) -> None:
-        """Fly to point. Finishes once the drone has arrived."""
+    async def goto(self, point: GeoPoint, speed: float | None = None, tolerance: float = 1.0) -> None:
+        """Fly to point. Finishes once the drone is within tolerance meters of it.
+
+        A large tolerance finishes early, so the next goto redirects the drone before it slows
+        down (bv_core flew laps with 40 m and scans with 1 m).
+        """
 
     @abstractmethod
     async def hold(self) -> None:

@@ -9,6 +9,7 @@ dependencies = ["numpy"]
 opencv = ["opencv-python"]
 ltdetr = ["lightly-train"]
 localizer = ["geographiclib", "scipy"]
+mavsdk = ["mavsdk>=4"]
 
 [build-system]
 requires = ["setuptools>=61"]
