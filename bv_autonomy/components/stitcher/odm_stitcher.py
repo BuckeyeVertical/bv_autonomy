@@ -5,6 +5,7 @@ import logging
 import shutil
 from pathlib import Path
 
+from bv_autonomy import paths
 from bv_autonomy.components.stitcher.base import Stitcher
 from bv_autonomy.components.stitcher.exif import CameraExif
 from bv_autonomy.components.stitcher.frame_recorder import FrameRecorder
@@ -24,8 +25,8 @@ class OdmStitcher(Stitcher):
 
     def __init__(
         self,
-        output_dir: str | Path,
         camera: CameraExif,
+        output_dir: str | Path | None = None,
         overlap: float = 0.35,
         terrain: Terrain | None = None,
         orthophoto_resolution_cm: float = 2.2,
@@ -33,14 +34,15 @@ class OdmStitcher(Stitcher):
     ):
         """
         Args:
-            output_dir: ODM's project directory goes in output_dir/project.
             camera: Written into each frame's EXIF; ODM uses it to model the lens.
+            output_dir: ODM's project directory goes in output_dir/project. Defaults to a new run folder in output/.
             overlap: Fraction of each frame shared with the next one along a row.
             terrain: Makes frame altitudes above sea level. Without it they're above the ground,
                 which ODM accepts; only the orthophoto's elevations are then relative to the ground.
             orthophoto_resolution_cm: Ground size of one orthophoto pixel (bv_core: 2.2).
         """
-        self._project = Path(output_dir) / "project"
+        output_dir = Path(output_dir) if output_dir is not None else paths.new_run_dir("odm")
+        self._project = output_dir / "project"
         self._recorder = FrameRecorder(self._project / "images", overlap, camera, terrain)
         self._resolution = orthophoto_resolution_cm
         self._image = image

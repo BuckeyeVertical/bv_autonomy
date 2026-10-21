@@ -37,7 +37,6 @@ class FrameRecorder:
         if not 0.0 <= overlap < 1.0:
             raise ValueError("overlap must be in [0, 1)")
         self.directory = Path(directory)
-        self.directory.mkdir(parents=True, exist_ok=True)
         self._overlap = overlap
         self._camera = camera
         self._terrain = terrain
@@ -82,6 +81,7 @@ class FrameRecorder:
         return footprint_m * (1.0 - self._overlap)
 
     def _write(self, path: Path, frame: Frame, captured_at: datetime) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)     # made on first use, so unused stitchers leave no folder
         if not cv2.imwrite(str(path), frame.image):
             raise OSError(f"could not write {path}")
         if self._camera is None:

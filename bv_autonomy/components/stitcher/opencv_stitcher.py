@@ -13,6 +13,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from bv_autonomy import paths
 from bv_autonomy.components.stitcher.base import Stitcher
 from bv_autonomy.components.stitcher.frame_recorder import FrameRecorder
 from bv_autonomy.types import Frame
@@ -23,7 +24,7 @@ log = logging.getLogger(__name__)
 class OpencvStitcher(Stitcher):
     def __init__(
         self,
-        output_dir: str | Path,
+        output_dir: str | Path | None = None,
         overlap: float = 0.35,
         max_width: int = 1500,
         max_images_per_row: int = 50,
@@ -33,12 +34,12 @@ class OpencvStitcher(Stitcher):
     ):
         """
         Args:
-            output_dir: Where frames (in frames/) and the mosaic are written.
+            output_dir: Where frames (in frames/) and the mosaic are written. Defaults to a new run folder in output/.
             overlap: Fraction of each frame shared with the next one along a row.
             max_width: Frames are downscaled to this width before stitching.
         Defaults are bv_core's.
         """
-        self._output_dir = Path(output_dir)
+        self._output_dir = Path(output_dir) if output_dir is not None else paths.new_run_dir("opencv_stitch")
         self._recorder = FrameRecorder(self._output_dir / "frames", overlap)
         self._max_width = max(100, max_width)
         self._max_per_row = max(2, max_images_per_row)

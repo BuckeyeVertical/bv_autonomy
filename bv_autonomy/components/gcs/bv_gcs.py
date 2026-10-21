@@ -15,6 +15,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
+from bv_autonomy import paths
 from bv_autonomy.components.drone import Drone
 from bv_autonomy.components.gcs.base import Gcs
 from bv_autonomy.types import ApprovalRequest, Frame
@@ -50,7 +51,7 @@ class BvGcs(Gcs):
         self,
         host: str = "0.0.0.0",
         port: int = 8765,
-        web_dist: str | Path | None = None,
+        web_dist: str | Path = paths.GCS_WEB_DIST,
         drone: Drone | None = None,
         class_ids: dict[str, int] | None = None,
         fix_interval: float = 0.5,
@@ -58,13 +59,13 @@ class BvGcs(Gcs):
     ):
         """
         Args:
-            web_dist: The dashboard's built frontend (bv_gcs web/dist). None serves only the API.
+            web_dist: The dashboard's built frontend. If it isn't there, only the API is served.
             drone: Sends its position to the dashboard's map.
             class_ids: Label to class id, for the dashboard's class_id field (e.g. {"person": 0, "tent": 1}).
         """
         self._host = host
         self._port = port
-        self._dist = Path(web_dist) if web_dist is not None else None
+        self._dist = Path(web_dist)
         self._drone = drone
         self._class_ids = dict(class_ids or {})
         self._fix_interval = fix_interval
@@ -223,7 +224,7 @@ class BvGcs(Gcs):
         app.router.add_get("/ws", self._ws_handler)
         app.router.add_get("/frame/{detection_id}", self._frame_handler)
         app.router.add_get("/healthz", self._health_handler)
-        if self._dist is not None and (self._dist / "index.html").is_file():
+        if (self._dist / "index.html").is_file():
             app.router.add_get("/", self._index_handler)
             app.router.add_static("/", self._dist)
         else:
@@ -274,7 +275,7 @@ class BvGcs(Gcs):
             "video_clients": 0,
             "pending": self._pending_for_send(),
             "mission_state": self._state.get("mission_state"),
-            "frontend": str(self._dist) if self._dist else "not built",
+            "frontend": str(self._dist) if (self._dist / "index.html").is_file() else "not built",
         })
 
     async def _index_handler(self, _request: web.Request) -> web.FileResponse:
@@ -282,7 +283,7 @@ class BvGcs(Gcs):
         return web.FileResponse(self._dist / "index.html", headers={"Cache-Control": "no-cache"})
 
     async def _no_frontend_handler(self, _request: web.Request) -> web.Response:
-        return web.Response(text="bv_gcs frontend not found; build bv_gcs/web and pass web_dist.\n")
+        return web.Response(text=f"bv_gcs frontend not found at {self._dist}; build it with npm run build in bv_gcs/web.\n")
 
 
 def _message(event: str, value) -> dict:

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from bv_autonomy import paths
 from bv_autonomy.components.detector.base import Detector
 from bv_autonomy.types import Detection, Frame
 
@@ -19,7 +20,7 @@ class LtdetrDetector(Detector):
 
     def __init__(
         self,
-        model_path: str | Path,
+        model_path: str | Path = paths.LTDETR_WEIGHTS,
         thresholds: dict[str, float] | None = None,
         default_threshold: float = 0.5,
         device: str | None = None,       # "cuda", "mps" or "cpu"; None lets LightlyTrain pick
