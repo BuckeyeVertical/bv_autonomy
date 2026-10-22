@@ -19,7 +19,7 @@ _EARTH_R = 6378137.0                # WGS-84 semi-major axis (meters)
 _ACCEPT_TIMEOUT_S = 5.0             # how long one attempt waits for PX4 to show a command took effect
 _RETRIES = 3
 _STALL_S = 60.0                     # a flight with no progress for this long is stuck
-_MOVED_M = 3.0                      # movement, in any direction, that counts as progress
+_CLOSER_M = 3.0                     # beating the closest approach to the goal by this much counts as progress
 _MODE_GRACE_S = 2.0                 # PX4 may change mode a moment before reporting it finished
 
 
@@ -109,7 +109,10 @@ class MavsdkDrone(Drone):
     async def goto(self, point: Waypoint, speed: float | None = None, tolerance: float = 1.0) -> None:
         await self._start_mission([_mission_item(point, speed, tolerance, fly_through=False)], point, tolerance)
         await self._wait_for_progress(
-            lambda: _distance_m(self.position(), point) <= tolerance, {FlightMode.MISSION}, f"flying to {point}"
+            lambda: _distance_m(self.position(), point) <= tolerance,
+            lambda: _distance_m(self.position(), point),
+            {FlightMode.MISSION},
+            f"flying to {point}",
         )
 
     async def fly_mission(
@@ -126,9 +129,16 @@ class MavsdkDrone(Drone):
             progress = self._mission_progress
             return progress is not None and progress.total == len(items) and progress.current >= progress.total
 
+        def to_next_point():
+            progress = self._mission_progress
+            next_index = progress.current if progress is not None and progress.total == len(items) else 0
+            return _distance_m(self.position(), route[min(next_index, len(route) - 1)])
+
         reporter = asyncio.create_task(self._report_progress(len(items), on_progress)) if on_progress else None
         try:
-            await self._wait_for_progress(finished, {FlightMode.MISSION}, f"flying a {len(items)}-point mission")
+            await self._wait_for_progress(
+                finished, to_next_point, {FlightMode.MISSION}, f"flying a {len(items)}-point mission"
+            )
         finally:
             if reporter:
                 reporter.cancel()
@@ -154,8 +164,14 @@ class MavsdkDrone(Drone):
             lambda: self._flight_mode == FlightMode.RETURN_TO_LAUNCH or not self._in_air,
             "return home",
         )
+        home = self.home()
+
+        def left_to_go():
+            p = self.position()
+            return _distance_m(Waypoint(p.lat, p.lon, 0.0), home) + p.alt
+
         await self._wait_for_progress(
-            lambda: not self._in_air, {FlightMode.RETURN_TO_LAUNCH}, "returning home and landing"
+            lambda: not self._in_air, left_to_go, {FlightMode.RETURN_TO_LAUNCH}, "returning home and landing"
         )
 
     def pose(self) -> Pose:
@@ -233,14 +249,18 @@ class MavsdkDrone(Drone):
                 on_progress(min(reported, total))
             await asyncio.sleep(0.1)
 
-    async def _wait_for_progress(self, done, modes: set[FlightMode], what: str) -> None:
+    async def _wait_for_progress(self, done, remaining, modes: set[FlightMode], what: str) -> None:
         """Wait for PX4's flight in one of modes to be done, however long it takes while it's making progress.
 
+        remaining() is how far the drone still is from its current goal, in meters. Progress is a new
+        mission item, or getting _CLOSER_M closer to the goal than ever before. Measuring against the
+        closest approach, not the last position, keeps GPS noise and drift from looking like progress.
+
         Raises if PX4 leaves those modes (a pilot, failsafe or other program took over), or if the
-        flight makes no progress (no new mission item, no movement, including straight down) for _STALL_S.
+        flight makes no progress for _STALL_S.
         """
         last_item = self._mission_progress.current if self._mission_progress else None
-        last_place = self.position()
+        closest = remaining()
         last_progress = time.monotonic()
         left_modes = None
         while not done():
@@ -252,8 +272,11 @@ class MavsdkDrone(Drone):
             else:
                 left_modes = None
             item = self._mission_progress.current if self._mission_progress else None
-            if item != last_item or _distance_m(self.position(), last_place) > _MOVED_M:
-                last_item, last_place, last_progress = item, self.position(), now
+            left = remaining()
+            if item != last_item:
+                last_item, closest, last_progress = item, left, now
+            elif left < closest - _CLOSER_M:
+                closest, last_progress = left, now
             elif now - last_progress > _STALL_S:
                 raise TimeoutError(f"no progress for {_STALL_S:.0f} s while {what}")
             await asyncio.sleep(0.1)
