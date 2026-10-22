@@ -3,7 +3,7 @@
 import math
 from dataclasses import dataclass
 
-from bv_autonomy.types import GeoPoint, Intrinsics, Pose
+from bv_autonomy.types import Waypoint, Intrinsics, Pose
 
 _EARTH_R = 6378137.0
 
@@ -11,7 +11,7 @@ _EARTH_R = 6378137.0
 @dataclass
 class Target:
     label: str
-    position: GeoPoint
+    position: Waypoint
     size_m: float = 1.5          # width and length on the ground
     color_bgr: tuple[int, int, int] = (40, 40, 220)
 

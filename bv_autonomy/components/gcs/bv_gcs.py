@@ -213,6 +213,16 @@ class BvGcs(Gcs):
         return {"type": "decision_ack", "detection_id": detection_id, "accepted": accepted, "message": message}
 
     def _on_request(self, name: str) -> dict:
+        refusal = None
+        if name == "end_laps":
+            # The signal stays set, so one pressed before laps would end them as soon as they start.
+            if self._state.get("mission_state") != "lap":
+                refusal = "End laps is only available during laps"
+            elif self.signal(name).is_set():
+                refusal = "End laps is already requested"
+        if refusal is not None:
+            log.info("refused %s: %s", name.replace("_", " "), refusal)
+            return {"type": f"{name}_ack", "accepted": False, "message": refusal}
         log.warning("operator requested %s", name.replace("_", " "))
         self.signal(name).set()
         return {"type": f"{name}_ack", "accepted": True, "message": f"{name.replace('_', ' ')} requested"}

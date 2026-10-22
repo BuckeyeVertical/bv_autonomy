@@ -8,7 +8,7 @@ from geographiclib.geodesic import Geodesic
 from scipy.spatial.transform import Rotation
 
 from bv_autonomy.components.localizer.base import Localizer
-from bv_autonomy.types import Detection, GeoPoint
+from bv_autonomy.types import Detection, Waypoint
 
 # bv_core's camera_orientation (config/filtering_params.yaml): turns the camera's
 # optical axis to point down, with the image's top edge toward the drone's nose.
@@ -31,7 +31,7 @@ class GimbalNadirLocalizer(Localizer):
         """
         self._mount = Rotation.from_euler("xyz", mount_xyz)
 
-    def locate(self, detection: Detection) -> GeoPoint | None:
+    def locate(self, detection: Detection) -> Waypoint | None:
         frame = detection.frame
         k = frame.intrinsics
         height = frame.pose.position.alt
@@ -60,5 +60,5 @@ class GimbalNadirLocalizer(Localizer):
         start = frame.pose.position
         azimuth = math.degrees(math.atan2(east, north))
         end = Geodesic.WGS84.Direct(start.lat, start.lon, azimuth, math.hypot(east, north))
-        return GeoPoint(lat=end["lat2"], lon=end["lon2"], alt=0.0)
+        return Waypoint(lat=end["lat2"], lon=end["lon2"], alt=0.0)
 

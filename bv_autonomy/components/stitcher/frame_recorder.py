@@ -11,7 +11,7 @@ import piexif
 
 from bv_autonomy.components.stitcher.exif import CameraExif, FrameGeotag, build_exif_bytes
 from bv_autonomy.components.terrain import Terrain
-from bv_autonomy.types import Frame, GeoPoint
+from bv_autonomy.types import Frame, Waypoint
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class FrameRecorder:
         self._rows: dict[int, list[Path]] = {}
         self._row = 0
         self._row_heading: float | None = None
-        self._last: GeoPoint | None = None
+        self._last: Waypoint | None = None
 
     def add(self, frame: Frame) -> bool:
         """Keep the frame if it's due. Returns whether it was kept. Doesn't wait for the write."""
@@ -101,7 +101,7 @@ def _angle_between(a: float, b: float) -> float:
     return abs((a - b + 180.0) % 360.0 - 180.0)
 
 
-def _distance_m(a: GeoPoint, b: GeoPoint) -> float:
+def _distance_m(a: Waypoint, b: Waypoint) -> float:
     dx = _EARTH_R * math.radians(b.lon - a.lon) * math.cos(math.radians(a.lat))
     dy = _EARTH_R * math.radians(b.lat - a.lat)
     return math.hypot(dx, dy)

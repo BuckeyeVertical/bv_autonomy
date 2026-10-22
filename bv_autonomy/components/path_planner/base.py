@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
-from bv_autonomy.types import GeoPoint
+from bv_autonomy.types import WaypointSequence
 
 
 class PathPlanner(ABC):
     @abstractmethod
-    def plan(self, boundary: list[GeoPoint]) -> list[GeoPoint]:
+    def plan(self, boundary: WaypointSequence) -> WaypointSequence:
         """Waypoints covering boundary, ready to fly."""

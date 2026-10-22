@@ -4,19 +4,23 @@ import asyncio
 import contextlib
 import math
 import time
+from collections.abc import Callable
 
 from mavsdk.asyncio import ComponentType, Configuration, Mavsdk
 from mavsdk.asyncio.plugins.action import ActionAsync, ActionError
-from mavsdk.asyncio.plugins.mission import MissionAsync, MissionItem, MissionPlan
+from mavsdk.asyncio.plugins.mission import MissionAsync, MissionError, MissionItem, MissionPlan
 from mavsdk.asyncio.plugins.telemetry import TelemetryAsync
 from mavsdk.plugins.telemetry import FlightMode
 
 from bv_autonomy.components.drone.base import Drone
-from bv_autonomy.types import GeoPoint, Pose
+from bv_autonomy.types import Pose, Waypoint, WaypointSequence
 
 _EARTH_R = 6378137.0                # WGS-84 semi-major axis (meters)
 _ACCEPT_TIMEOUT_S = 5.0             # how long one attempt waits for PX4 to show a command took effect
 _RETRIES = 3
+_STALL_S = 60.0                     # a flight with no progress for this long is stuck
+_MOVED_M = 3.0                      # movement, in any direction, that counts as progress
+_MODE_GRACE_S = 2.0                 # PX4 may change mode a moment before reporting it finished
 
 
 class MavsdkDrone(Drone):
@@ -102,43 +106,34 @@ class MavsdkDrone(Drone):
         # PX4 levels off just under the takeoff altitude.
         await self._wait(lambda: self._position.relative_altitude_m >= alt - 0.5, alt / 0.5 + 30, f"reaching {alt} m")
 
-    async def goto(self, point: GeoPoint, speed: float | None = None, tolerance: float = 1.0) -> None:
-        item = MissionItem(
-            latitude_deg=point.lat,
-            longitude_deg=point.lon,
-            relative_altitude_m=point.alt,
-            speed_m_s=float("nan") if speed is None else speed,
-            is_fly_through=False,
-            gimbal_pitch_deg=float("nan"),
-            gimbal_yaw_deg=float("nan"),
-            camera_action=MissionItem.CameraAction.NONE,
-            loiter_time_s=float("nan"),
-            camera_photo_interval_s=float("nan"),
-            acceptance_radius_m=tolerance,
-            yaw_deg=float("nan"),                # PX4 faces the direction of travel
-            camera_photo_distance_m=float("nan"),
-            vehicle_action=MissionItem.VehicleAction.NONE,
+    async def goto(self, point: Waypoint, speed: float | None = None, tolerance: float = 1.0) -> None:
+        await self._start_mission([_mission_item(point, speed, tolerance, fly_through=False)], point, tolerance)
+        await self._wait_for_progress(
+            lambda: _distance_m(self.position(), point) <= tolerance, {FlightMode.MISSION}, f"flying to {point}"
         )
 
-        async def start():
-            await self._mission.upload_mission(MissionPlan([item]))
-            await self._mission.start_mission()
+    async def fly_mission(
+        self,
+        route: WaypointSequence,
+        speed: float | None = None,
+        tolerance: float = 1.0,
+        on_progress: Callable[[int], None] | None = None,
+    ) -> None:
+        items = [_mission_item(point, speed, tolerance, fly_through=True) for point in route]
+        await self._start_mission(items, route[-1], tolerance)
 
-        def started():
-            # Mission mode alone isn't enough: PX4 stays in it after the previous goto finishes.
-            # The new waypoint is active until reached, unless the drone was already there.
+        def finished():
             progress = self._mission_progress
-            return self._flight_mode == FlightMode.MISSION and (
-                (progress is not None and progress.current < progress.total)
-                or _distance_m(self.position(), point) <= tolerance
-            )
+            return progress is not None and progress.total == len(items) and progress.current >= progress.total
 
-        await self._command(start, started, "start the goto mission", always_send=True)
-        distance = _distance_m(self.position(), point)
-        await self._wait(
-            lambda: _distance_m(self.position(), point) <= tolerance,
-            distance / (speed or 1.0) + 60, f"reaching {point}",
-        )
+        reporter = asyncio.create_task(self._report_progress(len(items), on_progress)) if on_progress else None
+        try:
+            await self._wait_for_progress(finished, {FlightMode.MISSION}, f"flying a {len(items)}-point mission")
+        finally:
+            if reporter:
+                reporter.cancel()
+        if on_progress:
+            on_progress(len(items))
 
     async def hold(self) -> None:
         """Switch to Hold and finish once the drone has braked to a stop."""
@@ -159,7 +154,9 @@ class MavsdkDrone(Drone):
             lambda: self._flight_mode == FlightMode.RETURN_TO_LAUNCH or not self._in_air,
             "return home",
         )
-        await self._wait(lambda: not self._in_air, 600, "returning home and landing")
+        await self._wait_for_progress(
+            lambda: not self._in_air, {FlightMode.RETURN_TO_LAUNCH}, "returning home and landing"
+        )
 
     def pose(self) -> Pose:
         a = self._attitude
@@ -171,17 +168,17 @@ class MavsdkDrone(Drone):
             time=self._position_time,
         )
 
-    def position(self) -> GeoPoint:
+    def position(self) -> Waypoint:
         p = self._position
-        return GeoPoint(p.latitude_deg, p.longitude_deg, p.relative_altitude_m)
+        return Waypoint(p.latitude_deg, p.longitude_deg, p.relative_altitude_m)
 
     def heading(self) -> float:
         return self._attitude.yaw_deg % 360.0
 
-    def home(self) -> GeoPoint | None:
+    def home(self) -> Waypoint | None:
         if self._home is None:
             return None
-        return GeoPoint(self._home.latitude_deg, self._home.longitude_deg, 0.0)
+        return Waypoint(self._home.latitude_deg, self._home.longitude_deg, 0.0)
 
     def battery(self) -> float:
         return self._battery.remaining_percent / 100.0
@@ -203,12 +200,63 @@ class MavsdkDrone(Drone):
                 return
             try:
                 await send()
-            except ActionError as exc:      # a lost acknowledgment shows up as a timeout here
+            except (ActionError, MissionError) as exc:      # a lost acknowledgment shows up as a timeout here
                 error = exc
             with contextlib.suppress(TimeoutError):
                 await self._wait(accepted, _ACCEPT_TIMEOUT_S, name)
                 return
         raise RuntimeError(f"PX4 didn't {name} after {_RETRIES} tries (last error: {error})")
+
+    async def _start_mission(self, items: list[MissionItem], last: Waypoint, tolerance: float) -> None:
+        async def start():
+            await self._mission.upload_mission(MissionPlan(items))
+            await self._mission.start_mission()
+
+        def started():
+            # Mission mode alone isn't enough: PX4 stays in it after the previous mission finishes.
+            # The new mission is active until its last point is reached, unless the drone was already there.
+            progress = self._mission_progress
+            return self._flight_mode == FlightMode.MISSION and (
+                (progress is not None and progress.current < progress.total)
+                or _distance_m(self.position(), last) <= tolerance
+            )
+
+        await self._command(start, started, "start the mission", always_send=True)
+
+    async def _report_progress(self, total: int, on_progress: Callable[[int], None]) -> None:
+        """Call on_progress with the number of points reached each time PX4's mission item moves on."""
+        reported = None
+        while True:
+            progress = self._mission_progress
+            if progress is not None and progress.total == total and progress.current != reported:
+                reported = progress.current
+                on_progress(min(reported, total))
+            await asyncio.sleep(0.1)
+
+    async def _wait_for_progress(self, done, modes: set[FlightMode], what: str) -> None:
+        """Wait for PX4's flight in one of modes to be done, however long it takes while it's making progress.
+
+        Raises if PX4 leaves those modes (a pilot, failsafe or other program took over), or if the
+        flight makes no progress (no new mission item, no movement, including straight down) for _STALL_S.
+        """
+        last_item = self._mission_progress.current if self._mission_progress else None
+        last_place = self.position()
+        last_progress = time.monotonic()
+        left_modes = None
+        while not done():
+            now = time.monotonic()
+            if self._flight_mode not in modes:
+                left_modes = left_modes or now
+                if now - left_modes > _MODE_GRACE_S:
+                    raise RuntimeError(f"PX4 switched to {self._flight_mode.name} while {what}")
+            else:
+                left_modes = None
+            item = self._mission_progress.current if self._mission_progress else None
+            if item != last_item or _distance_m(self.position(), last_place) > _MOVED_M:
+                last_item, last_place, last_progress = item, self.position(), now
+            elif now - last_progress > _STALL_S:
+                raise TimeoutError(f"no progress for {_STALL_S:.0f} s while {what}")
+            await asyncio.sleep(0.1)
 
     async def _wait(self, condition, timeout: float, what: str) -> None:
         deadline = time.monotonic() + timeout
@@ -232,7 +280,26 @@ class MavsdkDrone(Drone):
         self._position_time = time.monotonic()
 
 
-def _distance_m(a: GeoPoint, b: GeoPoint) -> float:
+def _mission_item(point: Waypoint, speed: float | None, tolerance: float, fly_through: bool) -> MissionItem:
+    return MissionItem(
+        latitude_deg=point.lat,
+        longitude_deg=point.lon,
+        relative_altitude_m=point.alt,
+        speed_m_s=float("nan") if speed is None else speed,
+        is_fly_through=fly_through,
+        gimbal_pitch_deg=float("nan"),
+        gimbal_yaw_deg=float("nan"),
+        camera_action=MissionItem.CameraAction.NONE,
+        loiter_time_s=float("nan"),
+        camera_photo_interval_s=float("nan"),
+        acceptance_radius_m=tolerance,
+        yaw_deg=float("nan"),                # PX4 faces the direction of travel
+        camera_photo_distance_m=float("nan"),
+        vehicle_action=MissionItem.VehicleAction.NONE,
+    )
+
+
+def _distance_m(a: Waypoint, b: Waypoint) -> float:
     # Flat-earth approximation, accurate over a competition field.
     dx = _EARTH_R * math.radians(b.lon - a.lon) * math.cos(math.radians(a.lat))
     dy = _EARTH_R * math.radians(b.lat - a.lat)

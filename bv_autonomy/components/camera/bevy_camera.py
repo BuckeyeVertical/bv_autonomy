@@ -10,7 +10,7 @@ import numpy as np
 
 from bv_autonomy.components.camera.base import Camera
 from bv_autonomy.components.drone import Drone
-from bv_autonomy.types import Frame, Intrinsics, Pose
+from bv_autonomy.types import Frame, Intrinsics
 
 _MAX_HEADER_BYTES = 64 * 1024
 _MAX_FRAME_BYTES = 100 * 1024 * 1024

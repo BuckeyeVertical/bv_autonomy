@@ -6,15 +6,19 @@ import numpy as np
 
 
 @dataclass
-class GeoPoint:
+class Waypoint:
     lat: float
     lon: float
     alt: float               # meters above the ground; Terrain.msl() gives it above sea level
 
 
+class WaypointSequence(list[Waypoint]):
+    """Waypoints in the order they're flown. Build one from any list: WaypointSequence([a, b, c])."""
+
+
 @dataclass
 class Pose:
-    position: GeoPoint
+    position: Waypoint
     # Radians, aircraft convention (as MAVSDK and PX4 report it): yaw 0 is north and
     # increases clockwise, pitch is positive nose up, roll is positive right wing down.
     roll: float
@@ -52,7 +56,7 @@ class Detection:
 @dataclass
 class ApprovalRequest:
     label: str
-    position: GeoPoint
+    position: Waypoint
     confidence: float
     crop: bytes              # JPEG, b"" if none
-    drone_position: GeoPoint
+    drone_position: Waypoint

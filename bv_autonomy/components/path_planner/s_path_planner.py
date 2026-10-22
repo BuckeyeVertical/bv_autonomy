@@ -4,7 +4,7 @@ import math
 from typing import Literal
 
 from bv_autonomy.components.path_planner.base import PathPlanner
-from bv_autonomy.types import GeoPoint, Intrinsics
+from bv_autonomy.types import Intrinsics, Waypoint, WaypointSequence
 
 _EARTH_R = 6378137.0  # WGS-84 semi-major axis (meters)
 
@@ -52,7 +52,7 @@ class SPathPlanner(PathPlanner):
         self._sweep = sweep
         self._start = start
 
-    def plan(self, boundary: list[GeoPoint]) -> list[GeoPoint]:
+    def plan(self, boundary: WaypointSequence) -> WaypointSequence:
         """Two waypoints per row, start then end. boundary is four corners in order around the area."""
         if len(boundary) != 4:
             raise ValueError("boundary must contain four ordered corners")
@@ -87,7 +87,7 @@ class SPathPlanner(PathPlanner):
             if first_is_top != (self._start == "top"):
                 route.reverse()
 
-        return [GeoPoint(lat, lon, self._altitude) for lat, lon in route]
+        return WaypointSequence(Waypoint(lat, lon, self._altitude) for lat, lon in route)
 
 
 def _row_offsets(span_m: float, footprint_m: float, overlap: float) -> list[float]:
