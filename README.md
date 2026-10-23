@@ -20,20 +20,19 @@ uv venv --python 3.12
 uv pip install -e ".[opencv,ltdetr,localizer,mavsdk,stitcher,gcs]"
 ```
 
-### bv_bevy
-
-The simulator: PX4 and the 3D world the drone's camera sees. Follow the setup in
-[bv_bevy's README](https://github.com/BuckeyeVertical/bv_bevy), then run the forest world
-from the `bv_bevy` folder, in two terminals, PX4 first:
-
+### bv_sim
+macOS (Apple Silicon) or Linux (x86_64, Ubuntu 24.04 or compatible), in Terminal:
 ```bash
-./px4.sh --prebuilt forest
+curl -fsSL https://raw.githubusercontent.com/BuckeyeVertical/bv_sim/main/install.sh | bash
 ```
-
+Windows (x86_64), in PowerShell:
 ```bash
-cargo run -- forest
+irm https://raw.githubusercontent.com/BuckeyeVertical/bv_sim/main/install.ps1 | iex
 ```
-
+Open a new terminal and run:
+```bash
+bv-sim run suas_2026
+```
 ### bv_gcs
 
 The operator's dashboard. See [bv_gcs's README](https://github.com/BuckeyeVertical/bv_gcs),
