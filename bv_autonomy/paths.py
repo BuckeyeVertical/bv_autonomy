@@ -17,6 +17,8 @@ LTDETR_WEIGHTS = MODELS_DIR / "ltdetr.pt"
 
 OUTPUT_DIR = REPO_DIR / "output"                         # not in git
 
+SUAS2026_STATE = REPO_DIR / "bv_autonomy" / "missions" / "suas2026" / "state" / "mission_state.json"  # not in git
+
 
 def new_run_dir(name: str) -> Path:
     """A fresh folder under output/ for one run, e.g. output/20261021_142530_odm."""
