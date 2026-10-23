@@ -203,8 +203,8 @@ class BvGcs(Gcs):
         approved = bool(data.get("approved", False))
         reason = str(data.get("reason", ""))
         pending = self._pending
-        if (pending is None or pending["detection_id"] != detection_id
-                or self._answer is None or self._answer.done()):
+        waiting = self._answer is not None and not self._answer.done()
+        if not waiting or pending is None or pending["detection_id"] != detection_id:
             accepted, message = False, "that detection is no longer waiting for a decision"
         else:
             log.info("operator %s %s%s", "APPROVED" if approved else "REJECTED", detection_id,
