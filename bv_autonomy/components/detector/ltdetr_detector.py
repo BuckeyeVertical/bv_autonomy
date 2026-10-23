@@ -42,11 +42,12 @@ class LtdetrDetector(Detector):
             return
         if not self._model_path.is_file():
             raise RuntimeError(f"LT-DETR weights not found: {self._model_path}")
-        self._model = await asyncio.to_thread(_load, self._model_path, self._device)
-        self._labels = dict(self._model.classes)
-        unknown = set(self._thresholds) - set(self._labels.values())
+        model = await asyncio.to_thread(_load, self._model_path, self._device)
+        labels = dict(model.classes)
+        unknown = set(self._thresholds) - set(labels.values())
         if unknown:
             raise ValueError(f"thresholds given for labels the model doesn't have: {sorted(unknown)}")
+        self._model, self._labels = model, labels
 
     async def stop(self) -> None:
         async with self._lock:
