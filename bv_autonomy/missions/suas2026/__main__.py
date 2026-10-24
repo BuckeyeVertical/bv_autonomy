@@ -9,8 +9,11 @@ async def main(resume: bool):
     state = MissionState.load() if resume else MissionState.new(SIM)
     state.save()                 # so a new run never resumes an older run's file
     mission = Suas2026(SIM, state)
-    await mission.connect(resuming=resume)
-    await mission.start()
+    try:
+        await mission.connect(resuming=resume)
+        await mission.start()
+    finally:
+        await mission.stop()
 
 
 if __name__ == "__main__":

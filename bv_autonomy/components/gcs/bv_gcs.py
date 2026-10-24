@@ -1,7 +1,7 @@
 """Drone-side server for the bv_gcs web dashboard, replacing bv_gcs's ROS approval_node.
 
 Speaks approval_node's protocol (bv_gcs web/src/net/types.ts), so the dashboard works unchanged:
-JSON over a WebSocket at /ws, the detection crop at /frame/<id>, and the built frontend at /.
+JSON over /ws, H.264/fMP4 over /video, detection crops at /frame/<id>, and the frontend at /.
 """
 
 import asyncio
@@ -11,6 +11,7 @@ import logging
 import time
 import uuid
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from aiohttp import WSMsgType, web
@@ -18,6 +19,7 @@ from aiohttp import WSMsgType, web
 from bv_autonomy import paths
 from bv_autonomy.components.drone import Drone
 from bv_autonomy.components.gcs.base import Gcs
+from bv_autonomy.components.gcs.video import H264PreviewEncoder, PREVIEW_FPS
 from bv_autonomy.types import ApprovalRequest, Frame
 
 log = logging.getLogger(__name__)
@@ -80,6 +82,12 @@ class BvGcs(Gcs):
         self._pending: dict | None = None
         self._pending_since = 0.0
         self._answer: asyncio.Future | None = None
+        self._preview_requests: set[web.WebSocketResponse] = set()
+        self._video_clients: dict[web.WebSocketResponse, asyncio.Queue] = {}
+        self._preview_frames: asyncio.Queue[Frame] = asyncio.Queue(maxsize=1)
+        self._preview_task: asyncio.Task | None = None
+        self._preview_lock = asyncio.Lock()
+        self._last_preview_time = 0.0
 
     async def start(self) -> None:
         if self._runner is not None:
@@ -92,6 +100,8 @@ class BvGcs(Gcs):
         log.info("GCS dashboard on http://%s:%d", self._host, self._port)
 
     async def stop(self) -> None:
+        self._preview_requests.clear()
+        await self._update_preview()
         if self._fix_task is not None:
             self._fix_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -99,7 +109,7 @@ class BvGcs(Gcs):
             self._fix_task = None
         if self._answer is not None and not self._answer.done():
             self._answer.set_result(None)
-        for ws in list(self._clients):
+        for ws in [*self._clients, *self._video_clients]:
             await ws.close()
         if self._runner is not None:
             await self._runner.cleanup()
@@ -113,7 +123,79 @@ class BvGcs(Gcs):
         self._broadcast(_message(event, value))
 
     def preview(self, frame: Frame) -> None:
-        pass    # the /video stream isn't ported yet
+        now = time.monotonic()
+        if not self.wants_preview or now - self._last_preview_time < 1 / PREVIEW_FPS:
+            return
+        self._last_preview_time = now
+        if self._preview_frames.full():
+            self._preview_frames.get_nowait()
+        self._preview_frames.put_nowait(frame)
+
+    @property
+    def wants_preview(self) -> bool:
+        return bool(self._preview_requests and self._video_clients)
+
+    async def _update_preview(self) -> None:
+        async with self._preview_lock:
+            if self.wants_preview:
+                if self._preview_task is None or self._preview_task.done():
+                    self._last_preview_time = 0.0
+                    self._preview_task = asyncio.create_task(self._encode_preview())
+            else:
+                was_running = self._preview_task is not None
+                if self._preview_task is not None:
+                    task, self._preview_task = self._preview_task, None
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
+                while not self._preview_frames.empty():
+                    self._preview_frames.get_nowait()
+                # /video may arrive before the enable message on /ws. Keep an
+                # initial viewer waiting; close viewers only when a session ends.
+                if was_running and not self._preview_requests:
+                    self._offer_video(None)
+
+    def _offer_video(self, fragment: tuple[bytes, bytes] | None) -> None:
+        # Each viewer holds at most one complete, independently decodable fragment.
+        for queue in self._video_clients.values():
+            if queue.full():
+                queue.get_nowait()
+            queue.put_nowait(fragment)
+
+    async def _encode_preview(self) -> None:
+        loop = asyncio.get_running_loop()
+        worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gcs-video")
+        encoder = None
+        try:
+            encoder = await loop.run_in_executor(worker, H264PreviewEncoder)
+            while True:
+                frame = await self._preview_frames.get()
+                header, fragments = await loop.run_in_executor(worker, encoder.encode, frame)
+                for fragment in fragments:
+                    self._offer_video((header, fragment))
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("Camera preview stopped; ensure the gcs extra is installed (uv pip install -e '.[gcs]')")
+            self._preview_requests.clear()
+            self._broadcast({"type": "preview_state", "enabled": False})
+            self._offer_video(None)
+        finally:
+            try:
+                if encoder is not None:
+                    # The single worker serializes close after any in-flight encode,
+                    # including when its asyncio future was cancelled.
+                    try:
+                        closing = loop.run_in_executor(worker, encoder.close)
+                        try:
+                            await asyncio.shield(closing)
+                        except asyncio.CancelledError:
+                            await closing
+                            raise
+                    except Exception:
+                        log.warning("Could not finalize the camera preview encoder", exc_info=True)
+            finally:
+                worker.shutdown(wait=False, cancel_futures=True)
 
     async def ask(self, request: ApprovalRequest, timeout: float) -> bool | None:
         if self._answer is not None and not self._answer.done():
@@ -233,6 +315,7 @@ class BvGcs(Gcs):
     def _build_app(self) -> web.Application:
         app = web.Application()
         app.router.add_get("/ws", self._ws_handler)
+        app.router.add_get("/video", self._video_handler)
         app.router.add_get("/frame/{detection_id}", self._frame_handler)
         app.router.add_get("/healthz", self._health_handler)
         if (self._dist / "index.html").is_file():
@@ -263,14 +346,59 @@ class BvGcs(Gcs):
                 elif kind in ("end_laps", "return_home"):
                     reply = self._on_request(kind)
                 elif kind == "preview":
-                    reply = {"type": "preview_state", "enabled": False}   # no video yet
+                    if data.get("enabled"):
+                        self._preview_requests.add(ws)
+                    else:
+                        self._preview_requests.discard(ws)
+                    await self._update_preview()
+                    reply = {"type": "preview_state", "enabled": ws in self._preview_requests}
                 else:
                     continue
                 await ws.send_str(json.dumps(reply))
         finally:
             self._clients.discard(ws)
+            self._preview_requests.discard(ws)
+            await self._update_preview()
             log.info("dashboard disconnected (%d left)", len(self._clients))
         return ws
+
+    async def _video_handler(self, request: web.Request) -> web.WebSocketResponse:
+        ws = web.WebSocketResponse(heartbeat=20)
+        await ws.prepare(request)
+        queue = asyncio.Queue(maxsize=1)
+        self._video_clients[ws] = queue
+        sender = None
+        try:
+            await self._update_preview()
+            sender = asyncio.create_task(self._send_video(ws, queue))
+            async for _ in ws:
+                pass
+        finally:
+            self._video_clients.pop(ws, None)
+            if sender is not None:
+                sender.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await sender
+            await self._update_preview()
+        return ws
+
+    async def _send_video(self, ws: web.WebSocketResponse, queue: asyncio.Queue) -> None:
+        sent_header = False
+        try:
+            while True:
+                item = await queue.get()
+                if item is None:
+                    break
+                header, fragment = item
+                async with asyncio.timeout(2):
+                    if not sent_header:
+                        await ws.send_bytes(header)
+                        sent_header = True
+                    await ws.send_bytes(fragment)
+        except (OSError, RuntimeError, TimeoutError):
+            log.info("Video viewer disconnected or could not keep up")
+        finally:
+            await ws.close()
 
     async def _frame_handler(self, request: web.Request) -> web.Response:
         crop = self._frames.get(request.match_info["detection_id"])
@@ -283,7 +411,8 @@ class BvGcs(Gcs):
         return web.json_response({
             "base_url": f"{request.scheme}://{request.host}",
             "clients": len(self._clients),
-            "video_clients": 0,
+            "video_clients": len(self._video_clients),
+            "preview_enabled": bool(self._preview_requests),
             "pending": self._pending_for_send(),
             "mission_state": self._state.get("mission_state"),
             "frontend": str(self._dist) if (self._dist / "index.html").is_file() else "not built",

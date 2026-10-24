@@ -12,7 +12,7 @@ ltdetr = ["lightly-train"]
 localizer = ["geographiclib", "scipy"]
 mavsdk = ["mavsdk>=4"]
 stitcher = ["piexif"]
-gcs = ["aiohttp"]
+gcs = ["aiohttp", "av>=14"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

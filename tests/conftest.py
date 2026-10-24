@@ -6,6 +6,7 @@ import pytest
 import pytest_asyncio
 
 from bv_autonomy import paths
+from bv_autonomy.components.camera import FakeCamera
 from bv_autonomy.components.drone import FakeDrone
 from bv_autonomy.components.gcs import NullGcs
 from bv_autonomy.missions import base
@@ -111,10 +112,11 @@ async def drone(site):
 
 @pytest.fixture
 def make_mission(site, drone, gcs, monkeypatch):
-    # Replace constructors before __init__, so no real GCS or MAVSDK connection is possible.
+    # Replace constructors before __init__, so no real camera, GCS or MAVSDK connection is possible.
     from bv_autonomy.missions.suas2026 import suas2026
 
     monkeypatch.setattr(suas2026, "MavsdkDrone", lambda: drone)
+    monkeypatch.setattr(suas2026, "BevyCamera", lambda drone: FakeCamera(drone, width=100, height=100))
     monkeypatch.setattr(suas2026, "BvGcs", lambda **kwargs: gcs)
 
     def make(state=None):

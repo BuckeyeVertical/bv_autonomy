@@ -43,3 +43,16 @@ cd bv_gcs/web
 npm ci
 npm run build
 ```
+
+With `bv-sim run suas_2026` running, start the mission from `bv_autonomy`:
+
+```bash
+.venv/bin/python -m bv_autonomy.missions.suas2026
+```
+
+Open `http://localhost:8765` and click **Start stream** for the onboard camera.
+The `gcs` extra includes PyAV for the dashboard's H.264/MP4 preview and recording;
+existing environments should run `uv pip install -e ".[gcs]"` to add it.
+Preview encoding runs only while requested and viewed, at up to 15 fps and
+640×480 (preserving aspect ratio). **Stop stream** or closing the requesting
+dashboard releases the encoder. The scan phase is still unimplemented.

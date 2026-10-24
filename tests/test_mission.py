@@ -182,7 +182,7 @@ def test_preflight_accepts_exact_minimum_battery(make_mission, drone, monkeypatc
     make_mission().preflight_checks()
 
 
-async def test_connect_checks_preflight_after_drone_and_gcs_start(make_mission, drone, gcs, monkeypatch):
+async def test_connect_checks_preflight_before_camera_start(make_mission, drone, gcs, monkeypatch):
     mission = make_mission()
     calls = []
 
@@ -192,11 +192,15 @@ async def test_connect_checks_preflight_after_drone_and_gcs_start(make_mission, 
     async def start():
         calls.append("gcs")
 
+    async def start_camera():
+        calls.append("camera")
+
     monkeypatch.setattr(drone, "connect", connect)
     monkeypatch.setattr(gcs, "start", start)
+    monkeypatch.setattr(mission.camera, "start", start_camera)
     monkeypatch.setattr(mission, "preflight_checks", lambda resuming: calls.append(resuming))
     await mission.connect(resuming=True)
-    assert calls == ["drone", "gcs", True]
+    assert calls == ["drone", "gcs", True, "camera"]
 
 
 @pytest.mark.parametrize("resume", [False, True])
@@ -223,7 +227,10 @@ async def test_main_saves_selected_state_before_connect(site, monkeypatch, resum
         async def start(self):
             calls.append("started")
 
+        async def stop(self):
+            calls.append("stopped")
+
     monkeypatch.setattr(entry, "SIM", site)
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
-    assert calls == ["constructed", "connected", "started"]
+    assert calls == ["constructed", "connected", "started", "stopped"]

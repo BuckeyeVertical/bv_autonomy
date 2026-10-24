@@ -30,6 +30,11 @@ class Gcs(ABC):
     def preview(self, frame: Frame) -> None:
         """Offer a frame for the live view. Dropped if no link or busy. Doesn't wait."""
 
+    @property
+    def wants_preview(self) -> bool:
+        """Whether the mission should supply frames for a live viewer."""
+        return False
+
     @abstractmethod
     async def ask(self, request: ApprovalRequest, timeout: float) -> bool | None:
         """Operator's answer: True to approve, False to reject, None if no answer in time."""

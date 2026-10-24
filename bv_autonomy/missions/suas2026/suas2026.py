@@ -1,12 +1,17 @@
 import asyncio
+import contextlib
+import logging
 from dataclasses import dataclass
 
 from bv_autonomy import paths
+from bv_autonomy.components.camera import BevyCamera
 from bv_autonomy.components.drone import MavsdkDrone
 from bv_autonomy.components.gcs import BvGcs
 from bv_autonomy.missions import base
 from bv_autonomy.missions.base import Mission
 from bv_autonomy.types import Waypoint, WaypointSequence
+
+log = logging.getLogger(__name__)
 
 MIN_BATTERY = 0.5
 
@@ -53,7 +58,9 @@ class Suas2026(Mission):
         self.site = site
         self.state = state
         self.drone = MavsdkDrone()
+        self.camera = BevyCamera(self.drone)
         self.gcs = BvGcs(drone=self.drone, class_ids={"person": 0, "tent": 1})
+        self._preview_task: asyncio.Task | None = None
 
     async def run(self):
         await self.takeoff(self.site.laps[0].alt)
@@ -67,10 +74,37 @@ class Suas2026(Mission):
             await self.drone.hold()
 
     async def connect(self, resuming: bool = False):
-        """Connect to the drone and start the GCS, then refuse to start unless it's safe to."""
+        """Connect to the drone and GCS, then start the camera after preflight checks."""
         await self.drone.connect()
         await self.gcs.start()
         self.preflight_checks(resuming)
+        await self.camera.start()
+        if self._preview_task is None:
+            self._preview_task = asyncio.create_task(self._send_preview())
+
+    async def _send_preview(self):
+        while True:
+            if self.gcs.wants_preview:
+                try:
+                    frame = await self.camera.latest(timeout=0.5)
+                except ValueError:
+                    log.warning("Skipping an invalid camera preview frame", exc_info=True)
+                else:
+                    if frame is not None:
+                        self.gcs.preview(frame)
+            await asyncio.sleep(1 / 15)
+
+    async def stop(self):
+        """Close the camera stream and GCS when the mission exits."""
+        if self._preview_task is not None:
+            self._preview_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._preview_task
+            self._preview_task = None
+        try:
+            await self.camera.stop()
+        finally:
+            await self.gcs.stop()
 
     def preflight_checks(self, resuming: bool = False):
         """Raise if the drone isn't ready to start the mission. A resumed mission may start in the air."""
