@@ -92,6 +92,23 @@ def test_a_resumed_recorder_starts_the_next_row_after_a_turn(make_recorder, fram
     assert names(after) == {1: ["row1_1.jpg"], 2: ["row2_1.jpg"]}
 
 
+def test_an_older_saved_place_never_overwrites_newer_frames(make_recorder, frame):
+    before = make_recorder()
+    before.add(moved(frame, east=0))
+    row_one = before.progress()
+    before.add(moved(frame, east=50, heading=180))
+    before.flush()
+    newer = before.rows()[2][0]
+    written = newer.stat().st_mtime_ns
+
+    after = make_recorder()
+    after.resume(row_one)
+    assert after.add(moved(frame, east=100, heading=0))
+    after.flush()
+    assert names(after) == {1: ["row1_1.jpg"], 2: ["row2_1.jpg"], 3: ["row3_1.jpg"]}
+    assert newer.stat().st_mtime_ns == written
+
+
 def test_frames_without_saved_progress_are_kept_and_numbering_carries_on(make_recorder, frame):
     before = make_recorder()
     before.add(moved(frame, east=0))

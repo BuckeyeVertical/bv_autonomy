@@ -91,7 +91,10 @@ class FrameRecorder:
         return StitchProgress(self._row, self._row_heading, self._last)
 
     def resume(self, progress: StitchProgress) -> None:
-        """Carries on from a saved place, so the next frame continues that row unless the drone has turned."""
+        """Carries on from a saved place, so the next frame continues that row unless the drone has turned. A
+        """
+        if progress.row < self._row:
+            return
         self._row, self._row_heading, self._last = progress.row, progress.heading, progress.last
         self._rows.setdefault(self._row, [])
 
