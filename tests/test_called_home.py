@@ -1,7 +1,7 @@
 import asyncio
 
 from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
-from bv_autonomy.fake_world import Target
+from bv_autonomy.components.platform.fake_world import Target
 from bv_autonomy.missions.suas2026 import MissionState
 from bv_autonomy.missions.suas2026.confirmation import Sighting
 from bv_autonomy.types import Waypoint, WaypointSequence

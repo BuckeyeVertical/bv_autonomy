@@ -8,7 +8,7 @@ import numpy as np
 
 from bv_autonomy.components.camera.base import Camera
 from bv_autonomy.components.drone import Drone
-from bv_autonomy.fake_world import Target, project
+from bv_autonomy.components.platform.fake_world import Target, project
 from bv_autonomy.types import Frame, Intrinsics
 
 BEVY_INTRINSICS = Intrinsics(width=1920, height=1080, fx=1148.2004184838818, fy=1148.2004184838818, cx=960.0, cy=540.0, dist=np.zeros(5))

@@ -2,12 +2,15 @@ import argparse
 import asyncio
 import logging
 
+from bv_autonomy import paths
 from bv_autonomy.components.platform import SimPlatform
 from bv_autonomy.missions.suas2026 import MissionState, Suas2026
 from bv_autonomy.missions.suas2026.sites import SIM
 
 
 async def main(resume: bool):
+    if not resume:
+        paths.archive_outputs(paths.SUAS2026_OUTPUT)
     platform = SimPlatform()
     state = MissionState.load() if resume else MissionState.new(SIM, platform.intrinsics)
     state.save()

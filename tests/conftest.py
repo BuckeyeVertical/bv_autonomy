@@ -88,6 +88,7 @@ def isolate_paths(tmp_path, monkeypatch):
     state_path = tmp_path / "state" / "mission_state.json"
     monkeypatch.setattr(paths, "SUAS2026_STATE", state_path)
     monkeypatch.setattr(paths, "OUTPUT_DIR", tmp_path / "output")
+    monkeypatch.setattr(paths, "SUAS2026_OUTPUT", tmp_path / "output" / "suas2026")
     monkeypatch.setattr(base.MissionState, "path", state_path, raising=False)
     monkeypatch.setattr(MissionState, "path", state_path)
 

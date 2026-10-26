@@ -1,10 +1,13 @@
 from .base import Platform
-from .fake_platform import FakePlatform
 
 __all__ = ["Platform", "FakePlatform", "SimPlatform", "PhysicalPlatform"]
 
 
 def __getattr__(name: str):
+    if name == "FakePlatform":
+        from .fake_platform import FakePlatform
+
+        return FakePlatform
     if name == "SimPlatform":
         from .sim_platform import SimPlatform
 

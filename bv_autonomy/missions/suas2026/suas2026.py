@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 
 from bv_autonomy import paths
-from bv_autonomy.crop import annotated_crop
+from bv_autonomy.components.gcs.crop import annotated_crop
 from bv_autonomy.components.detector import LtdetrDetector
 from bv_autonomy.components.gcs import BvGcs
 from bv_autonomy.components.localizer import GimbalNadirLocalizer
@@ -104,7 +104,7 @@ class Suas2026(Mission):
         self.payload = platform.payload
         self.detector = LtdetrDetector(thresholds=DETECTION_THRESHOLDS)
         self.localizer = GimbalNadirLocalizer()
-        self.stitcher = OpencvStitcher(overlap=SCAN_OVERLAP)
+        self.stitcher = OpencvStitcher(output_dir=paths.SUAS2026_OUTPUT / "stitching", overlap=SCAN_OVERLAP)
         self.gcs = BvGcs(drone=self.drone, class_ids=CLASS_IDS)
         self.window = ConfirmationWindow(CLASS_IDS, CONFIRM_HITS, CONFIRM_FRAMES, CONFIRM_RADIUS_M)
 

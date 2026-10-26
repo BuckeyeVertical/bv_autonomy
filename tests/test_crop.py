@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import pytest
 
-from bv_autonomy.crop import _window, annotated_crop
+from bv_autonomy.components.gcs.crop import _window, annotated_crop
 from bv_autonomy.types import Detection
 
 

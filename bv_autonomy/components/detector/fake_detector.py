@@ -3,7 +3,7 @@
 import random
 
 from bv_autonomy.components.detector.base import Detector
-from bv_autonomy.fake_world import Target, project
+from bv_autonomy.components.platform.fake_world import Target, project
 from bv_autonomy.types import Detection, Frame
 
 

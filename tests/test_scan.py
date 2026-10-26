@@ -9,7 +9,7 @@ from bv_autonomy.missions.suas2026 import MissionState
 from bv_autonomy.missions.suas2026.suas2026 import (
     SCAN_ALT, SCAN_OVERLAP, SCAN_SPEED, SCAN_TOLERANCE, TRANSIT_SPEED,
 )
-from bv_autonomy.fake_world import Target
+from bv_autonomy.components.platform.fake_world import Target
 from bv_autonomy.types import Waypoint, WaypointSequence
 
 

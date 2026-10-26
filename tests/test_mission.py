@@ -261,3 +261,39 @@ async def test_resume_after_everything_is_flown_just_returns_home(make_mission, 
     assert drone.takeoffs == [20]
     assert drone.reached == []
     assert not drone.in_air()
+
+
+@pytest.mark.parametrize("resume", [False, True])
+async def test_a_fresh_run_archives_the_last_runs_outputs_and_a_resume_keeps_them(site, drone, monkeypatch, resume):
+    from bv_autonomy import paths
+    from bv_autonomy.missions.suas2026 import __main__ as entry
+
+    frame = paths.SUAS2026_OUTPUT / "stitching" / "frames" / "row0_0.jpg"
+    frame.parent.mkdir(parents=True)
+    frame.write_text("jpeg")
+    MissionState(lap_route=WaypointSequence(), scan_route=WaypointSequence()).save()
+
+    class StandInMission:
+        def __init__(self, selected_site, state, platform):
+            pass
+
+        async def connect(self, resuming):
+            pass
+
+        async def start(self):
+            pass
+
+    monkeypatch.setattr(entry, "SIM", site)
+    monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
+    monkeypatch.setattr(entry, "Suas2026", StandInMission)
+    await entry.main(resume=resume)
+    assert frame.exists() is resume
+    assert bool(list((paths.SUAS2026_OUTPUT / "old").glob("*/stitching/frames/row0_0.jpg"))) is not resume
+
+
+def test_the_map_is_written_under_the_missions_stitching_folder(site, drone):
+    from bv_autonomy import paths
+    from bv_autonomy.missions.suas2026 import Suas2026
+
+    mission = Suas2026(site, MissionState.new(site, BEVY_INTRINSICS), FakePlatform(drone))
+    assert mission.stitcher._output_dir == paths.SUAS2026_OUTPUT / "stitching"

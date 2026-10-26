@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
-from bv_autonomy.fake_world import Target
+from bv_autonomy.components.platform.fake_world import Target
 from bv_autonomy.missions.suas2026 import MissionState, suas2026
 from bv_autonomy.missions.suas2026.confirmation import Sighting, distance_m
 from bv_autonomy.types import Waypoint, WaypointSequence

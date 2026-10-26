@@ -10,7 +10,7 @@ from bv_autonomy.components.detector.fake_detector import FakeDetector
 from bv_autonomy.components.payload.fake_payload import FakePayload
 from bv_autonomy.components.stitcher.fake_stitcher import FakeStitcher
 from bv_autonomy.components.terrain.base import Terrain
-from bv_autonomy.fake_world import Target, project
+from bv_autonomy.components.platform.fake_world import Target, project
 from bv_autonomy.types import Waypoint
 
 
@@ -155,6 +155,27 @@ async def test_fake_stitcher_samples_copies_and_writes_rgb_grid(tmp_path, frame)
     image = np.frombuffer(pixels, dtype=np.uint8).reshape(50, 100, 3)
     assert tuple(image[0, 0]) == (30, 20, 10)
     assert tuple(image[0, 50]) == (90, 80, 70)
+
+
+def test_archive_moves_the_last_run_into_old_and_keeps_earlier_ones(tmp_path):
+    outputs = tmp_path / "suas2026"
+    (outputs / "stitching" / "frames").mkdir(parents=True)
+    (outputs / "stitching" / "mosaic.jpg").write_text("map")
+    (outputs / "old" / "20261020_090000").mkdir(parents=True)
+    paths.archive_outputs(outputs)
+    assert [p.name for p in outputs.iterdir()] == ["old"]
+    archived = sorted((outputs / "old").iterdir())
+    assert archived[0].name == "20261020_090000"
+    assert (archived[1] / "stitching" / "mosaic.jpg").read_text() == "map"
+    assert (archived[1] / "stitching" / "frames").is_dir()
+
+
+def test_archive_without_a_last_run_does_nothing(tmp_path):
+    paths.archive_outputs(tmp_path / "suas2026")
+    (tmp_path / "suas2026" / "old").mkdir(parents=True)
+    paths.archive_outputs(tmp_path / "suas2026")
+    assert [p.name for p in (tmp_path / "suas2026").iterdir()] == ["old"]
+    assert not list((tmp_path / "suas2026" / "old").iterdir())
 
 
 def test_new_run_dir_stays_under_configured_output(tmp_path):
