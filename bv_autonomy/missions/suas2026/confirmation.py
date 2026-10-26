@@ -48,6 +48,11 @@ class ConfirmationWindow:
                 return Sighting(label, _centroid([s.position for s in seen]))
         return None
 
+    def describe(self) -> str:
+        """Returns one short line showing which of the recent frames saw each label, oldest first."""
+        return "  ".join(f"{label} " + "".join("x" if any(s.label == label for s in frame) else "." for frame in self._frames)
+                         for label in self._class_ids)
+
     def summary(self, found: set[str]) -> dict:
         """Returns the window's current state for the dashboard."""
         return {

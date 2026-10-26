@@ -107,6 +107,18 @@ class DropSequence:
         phases = [phase for phase in self._drop.phases if phase.duration_s > 0]
         self.total_s = config.pre_drop_s + sum(phase.duration_s for phase in phases)
         self._flips = self._flip_times(phases)
+        self.stages: list[tuple[float, str]] = []
+        if config.pre_drop_s > 0:
+            self.stages.append((0.0, "braking before the plate opens"))
+        start = config.pre_drop_s
+        for phase in phases:
+            self.stages.append((start, f"plate open, clamp toggling every {phase.toggle_s * 1000:.0f} ms "
+                                       f"for {phase.duration_s:g} s"))
+            start += phase.duration_s
+
+    def stage_at(self, elapsed_s: float) -> int:
+        """Returns which of the drop's stages this time into the drop falls in."""
+        return max(bisect.bisect_right([start for start, _ in self.stages], elapsed_s) - 1, 0)
 
     def _flip_times(self, phases: list[BrakePhase]) -> list[float]:
         """Returns the times at which the clamp changes position, each one toggle after the last."""
@@ -146,6 +158,9 @@ class WinchPayload(Payload):
         self._config = config
         self._confirmed: tuple[float, float] | None = None
         self._retry_at = 0.0
+        self._failing = False
+        self._sent = 0
+        self._unconfirmed = 0
 
     async def start(self) -> None:
         """Puts the plate at hold and opens the clamp, which PX4 keeps once the drone arms."""
@@ -156,18 +171,27 @@ class WinchPayload(Payload):
         if slot not in self._config.drops:
             raise ValueError(f"no payload slot {slot!r}")
         sequence = DropSequence(self._config, slot)
+        self._sent = self._unconfirmed = 0
+        stage = None
         started = time.monotonic()
         try:
             while True:
-                plate, clamp, done = sequence.positions_at(time.monotonic() - started)
+                elapsed = time.monotonic() - started
+                plate, clamp, done = sequence.positions_at(elapsed)
                 if done:
                     break
+                if sequence.stage_at(elapsed) != stage:
+                    stage = sequence.stage_at(elapsed)
+                    log.info("%s: %s", slot, sequence.stages[stage][1])
                 await self._set(plate, clamp)
                 await asyncio.sleep(_TICK_S)
         except BaseException:
+            log.warning("%s: drop stopped, putting the plate back at hold", slot)
             await self._set(self._config.plate_hold_us, self._config.unclamped_us)
             raise
         await self._settle(self._config.plate_hold_us, self._config.unclamped_us)
+        log.info("%s: dropped, plate back at hold and clamp open", slot)
+        log.debug("%s drop sent %d servo commands, %d not confirmed", slot, self._sent, self._unconfirmed)
 
     async def pick_up(self) -> None:
         """Picks up a payload, which this mechanism can't do."""
@@ -188,13 +212,20 @@ class WinchPayload(Payload):
             return True
         if time.monotonic() < self._retry_at:
             return False
+        self._sent += 1
         try:
             await self._drone.set_actuator(self._config.plate.actuator_set, self._config.plate.value(plate_us))
             await self._drone.set_actuator(self._config.clamp.actuator_set, self._config.clamp.value(clamp_us))
         except ActionError as error:
-            log.warning("payload servo command not confirmed (%s); retrying", error)
+            self._unconfirmed += 1
+            if not self._failing:
+                log.warning("payload servo commands aren't being confirmed (%s); retrying", error)
+                self._failing = True
             self._confirmed = None
             self._retry_at = time.monotonic() + _RETRY_S
             return False
+        if self._failing:
+            log.info("payload servo commands are confirmed again")
+            self._failing = False
         self._confirmed = wanted
         return True

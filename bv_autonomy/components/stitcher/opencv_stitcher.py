@@ -57,7 +57,8 @@ class OpencvStitcher(Stitcher):
         path = self._output_dir / f"mosaic_{datetime.now():%m%d_%H%M}.jpg"
         if not cv2.imwrite(str(path), mosaic):
             raise OSError(f"could not write {path}")
-        log.info("mosaic saved: %s (%dx%d px)", path, mosaic.shape[1], mosaic.shape[0])
+        log.debug("mosaic from %d frames in %d rows is %dx%d px", sum(len(frames) for frames in rows.values()),
+                  len(rows), mosaic.shape[1], mosaic.shape[0])
         return path
 
 

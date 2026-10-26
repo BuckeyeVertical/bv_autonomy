@@ -42,7 +42,7 @@ async def test_a_failed_map_still_lands(make_mission, drone, site, caplog):
     mission = make_mission(scan_only(site))
     with caplog.at_level(logging.ERROR):
         await asyncio.wait_for(mission.start(), 2)
-    assert "could not build the map" in caplog.text
+    assert any(r.levelno == logging.ERROR and r.exc_info for r in caplog.records)
     assert not drone.in_air()
 
 

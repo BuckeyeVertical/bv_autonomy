@@ -134,13 +134,13 @@ class BvGcs(Gcs):
             "image_url": f"/frame/{detection_id}" if request.crop else None,
         }
         self._pending_since = time.monotonic()
-        log.info("awaiting approval %s: %s at %.6f, %.6f (%.0f s)", detection_id, request.label,
+        log.debug("awaiting approval %s: %s at %.6f, %.6f (%.0f s)", detection_id, request.label,
                  request.position.lat, request.position.lon, timeout or 0.0)
         self._broadcast({"type": "pending", "pending": self._pending_for_send()})
         try:
             return await asyncio.wait_for(asyncio.shield(answer), timeout or None)
         except TimeoutError:
-            log.info("no answer for %s within %.0f s", detection_id, timeout)
+            log.debug("no answer for %s within %.0f s", detection_id, timeout)
             return None
         finally:
             if self._answer is answer:
@@ -197,7 +197,7 @@ class BvGcs(Gcs):
         if not waiting or pending is None or pending["detection_id"] != detection_id:
             accepted, message = False, "that detection is no longer waiting for a decision"
         else:
-            log.info("operator %s %s%s", "APPROVED" if approved else "REJECTED", detection_id,
+            log.debug("operator %s %s%s", "APPROVED" if approved else "REJECTED", detection_id,
                      f" ({reason})" if reason else "")
             self._answer.set_result(approved)
             accepted, message = True, "approved" if approved else "rejected"
@@ -211,9 +211,9 @@ class BvGcs(Gcs):
             elif self.signal(name).is_set():
                 refusal = "End laps is already requested"
         if refusal is not None:
-            log.info("refused %s: %s", name.replace("_", " "), refusal)
+            log.debug("refused %s: %s", name.replace("_", " "), refusal)
             return {"type": f"{name}_ack", "accepted": False, "message": refusal}
-        log.warning("operator requested %s", name.replace("_", " "))
+        log.debug("operator requested %s", name.replace("_", " "))
         self.signal(name).set()
         return {"type": f"{name}_ack", "accepted": True, "message": f"{name.replace('_', ' ')} requested"}
 
@@ -234,7 +234,7 @@ class BvGcs(Gcs):
         ws = web.WebSocketResponse(heartbeat=20)
         await ws.prepare(request)
         self._clients.add(ws)
-        log.info("dashboard connected from %s (%d total)", request.remote, len(self._clients))
+        log.debug("dashboard connected from %s (%d total)", request.remote, len(self._clients))
         try:
             await ws.send_str(json.dumps(self._snapshot()))
             async for msg in ws:
@@ -256,7 +256,7 @@ class BvGcs(Gcs):
                 await ws.send_str(json.dumps(reply))
         finally:
             self._clients.discard(ws)
-            log.info("dashboard disconnected (%d left)", len(self._clients))
+            log.debug("dashboard disconnected (%d left)", len(self._clients))
         return ws
 
     async def _frame_handler(self, request: web.Request) -> web.Response:

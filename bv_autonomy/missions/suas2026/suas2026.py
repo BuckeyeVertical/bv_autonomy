@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,8 +21,8 @@ log = logging.getLogger(__name__)
 
 MIN_BATTERY = 0.5
 
-LAP_ALT = 60.96
-SCAN_ALT = 60.96
+LAP_ALT = 48.768
+SCAN_ALT = 48.768
 
 SCAN_OVERLAP = 0.35
 SCAN_TOLERANCE = 1.0
@@ -141,16 +142,29 @@ class Suas2026(Mission):
         """Holds the drone where it is so the operator can take over or the mission can resume."""
         self.gcs.report("mission_state", {"state": "aborted"})
         if self.drone.in_air():
+            log.warning("holding where it is")
             await self.drone.hold()
 
     async def connect(self, resuming: bool = False):
         """Connects to the drone, readies the payload, camera, detector and GCS, and checks that it's safe to start."""
+        if resuming:
+            log.info("resuming with %d lap points, %d scan points and %d deliveries left",
+                     len(self.state.lap_route), len(self.state.scan_route), len(self.state.targets))
+        else:
+            log.info("starting a new mission with %d lap points and %d scan points",
+                     len(self.state.lap_route), len(self.state.scan_route))
         await self.drone.connect()
+        home = self.drone.home()
+        log.info("drone home at %.6f, %.6f, battery %.0f%%", home.lat, home.lon, self.drone.battery() * 100)
         await self.payload.start()
+        log.info("payload at rest")
         await self.camera.start()
+        started = time.monotonic()
         await self.detector.start()
+        log.info("detector loaded in %.0f s", time.monotonic() - started)
         await self.gcs.start()
         self.preflight_checks(resuming)
+        log.info("preflight checks passed")
 
     def preflight_checks(self, resuming: bool = False):
         """Raises if the drone isn't ready to start the mission."""
@@ -167,6 +181,7 @@ class Suas2026(Mission):
         if self.drone.in_air():
             return
         self.gcs.report("mission_state", {"state": "takeoff"})
+        log.info("taking off to %.1f m", alt)
         await self.drone.arm()
         await self.drone.takeoff(alt)
 
@@ -175,10 +190,13 @@ class Suas2026(Mission):
         if not route:
             return
         self.gcs.report("mission_state", {"state": "lap"})
+        log.info("flying laps, %d points", len(route))
         end_laps = self.gcs.signal("end_laps")
         end_laps.clear()
 
         def record_progress(reached: int):
+            if reached:
+                log.debug("lap point %d of %d", reached, len(route))
             self.gcs.report_progress("lap", route, reached)
             self.state.lap_route = WaypointSequence(route[reached:])
             self.state.save()
@@ -193,7 +211,9 @@ class Suas2026(Mission):
             await asyncio.wait({flight, end_pushed})
         if flight in done:
             flight.result()
+            log.info("laps done")
         else:
+            log.info("operator ended laps with %d of %d points left", len(self.state.lap_route), len(route))
             self.state.lap_route = WaypointSequence()
             self.state.save()
             await self.drone.hold()
@@ -213,9 +233,12 @@ class Suas2026(Mission):
                         tolerance: float) -> Sighting | None:
         """Flies the scan rows while watching the camera, and returns a target if one is found."""
         self.gcs.report("mission_state", {"state": "scan"})
+        log.info("scanning, %d points left", len(route))
         await self.drone.goto(route[0], transit_speed, tolerance)
 
         def record_progress(reached: int):
+            if reached:
+                log.debug("scan point %d of %d", reached, len(route))
             self.gcs.report_progress("scan", route, reached)
             self.state.scan_route = WaypointSequence(route[reached:])
             self.state.save()
@@ -231,43 +254,69 @@ class Suas2026(Mission):
         if watching in done:
             return watching.result()
         flight.result()
+        log.info("scan done")
         return None
 
     async def watch(self) -> Sighting:
         """Sends each camera frame to the dashboard and the map, and returns the first target confirmed."""
         self.window.clear()
+        camera_lost = False
+        ignoring = set()
         while True:
             frame = await self.camera.latest(timeout=1.0)
             if frame is None:
-                log.warning("no camera frame for 1 s")
+                if not camera_lost:
+                    log.warning("camera frames stopped")
+                    camera_lost = True
                 continue
+            if camera_lost:
+                log.info("camera frames are back")
+                camera_lost = False
             self.gcs.preview(frame)
             self.stitcher.add(frame)
-            sightings = [Sighting(d.label, p) for d in await self.detector.detect(frame)
-                         if (p := self.localizer.locate(d)) is not None]
             found = self.state.targets + self.state.delivered
-            wanted_now = [s for s in sightings if wanted(s, found, self.state.rejected, CONFIRM_RADIUS_M)]
+            wanted_now = []
+            for detection in await self.detector.detect(frame):
+                position = self.localizer.locate(detection)
+                if position is None:
+                    continue
+                sighting = Sighting(detection.label, position)
+                if wanted(sighting, found, self.state.rejected, CONFIRM_RADIUS_M):
+                    log.debug("saw a %s (%.2f) at %.6f, %.6f", detection.label, detection.confidence,
+                              position.lat, position.lon)
+                    wanted_now.append(sighting)
+                elif detection.label not in ignoring:
+                    log.debug("ignoring the %s at %.6f, %.6f, already handled", detection.label,
+                              position.lat, position.lon)
+                    ignoring.add(detection.label)
             confirmed = self.window.add(wanted_now)
             self.gcs.report("confirm_window", self.window.summary({t.label for t in found}))
+            if wanted_now:
+                log.debug("window %s", self.window.describe())
             if confirmed:
-                log.info("confirmed %s at %.6f, %.6f", confirmed.label, confirmed.position.lat, confirmed.position.lon)
+                log.info("confirmed the %s at %.6f, %.6f", confirmed.label, confirmed.position.lat,
+                         confirmed.position.lon)
                 return confirmed
 
     async def check_target(self, target: Sighting):
         """Stops over a target, finds it again, and asks the operator whether it's real."""
         self.gcs.report("mission_state", {"state": "localize"})
+        log.info("holding to look at the %s again", target.label)
         await self.drone.hold()
         found = await self.locate_again(target)
         if found is None:
             log.warning("lost the %s after holding; resuming the scan", target.label)
             return
         detection, position = found
+        log.info("found the %s again (%.2f) at %.6f, %.6f, %.1f m from where it was confirmed", target.label,
+                 detection.confidence, position.lat, position.lon, distance_m(position, target.position))
         try:
             crop = annotated_crop(detection)
         except Exception:
             log.exception("could not crop the %s; asking without an image", target.label)
             crop = b""
         request = ApprovalRequest(target.label, position, detection.confidence, crop, self.drone.position())
+        log.info("asking the operator about the %s, %.0f s to answer", target.label, APPROVAL_TIMEOUT_S)
         answer = await self.gcs.ask(request, APPROVAL_TIMEOUT_S)
         if answer is False:
             log.info("operator rejected the %s at %.6f, %.6f", target.label, position.lat, position.lon)
@@ -285,11 +334,15 @@ class Suas2026(Mission):
         """Delivers a payload to each approved target."""
         for target in list(self.state.targets):
             self.gcs.report("mission_state", {"state": "deliver"})
+            slot = PAYLOAD_SLOTS[target.label]
+            log.info("flying to the %s to drop the %s", target.label, slot)
             above = Waypoint(target.position.lat, target.position.lon, SCAN_ALT)
             await self.drone.goto(above, DELIVER_SPEED, DELIVER_TOLERANCE)
             await self.drone.hold()
-            await self.payload.release(PAYLOAD_SLOTS[target.label])
-            log.info("delivered the %s's %s", target.label, PAYLOAD_SLOTS[target.label])
+            log.info("over the %s, %.1f m off, dropping the %s", target.label,
+                     distance_m(self.drone.position(), target.position), slot)
+            await self.payload.release(slot)
+            log.info("delivered the %s to the %s", slot, target.label)
             self.state.targets.remove(target)
             self.state.delivered.append(target)
             self.state.save()
@@ -299,15 +352,23 @@ class Suas2026(Mission):
         self.state.returning = True
         self.state.save()
         self.gcs.report("mission_state", {"state": "return"})
+        log.info("returning home and building the map")
         await self.detector.stop()
-        stitching = asyncio.create_task(self.stitcher.stitch())
+
+        async def stitch():
+            started = time.monotonic()
+            return await self.stitcher.stitch(), time.monotonic() - started
+
+        stitching = asyncio.create_task(stitch())
         try:
             await self.drone.return_home()
         except BaseException:
             stitching.cancel()
             raise
+        log.info("landed")
         try:
-            log.info("map saved to %s", await stitching)
+            path, seconds = await stitching
+            log.info("map saved to %s, stitched in %.0f s", path, seconds)
         except Exception:
             log.exception("could not build the map")
 

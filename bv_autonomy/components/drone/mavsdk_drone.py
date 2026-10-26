@@ -2,10 +2,12 @@
 
 import asyncio
 import contextlib
+import logging
 import math
 import time
 from collections.abc import Callable
 
+from mavsdk import LogLevel, log_subscribe
 from mavsdk.asyncio import ComponentType, Configuration, Mavsdk
 from mavsdk.asyncio.plugins.action import ActionAsync, ActionError
 from mavsdk.asyncio.plugins.mission import MissionAsync, MissionError, MissionItem, MissionPlan
@@ -21,6 +23,11 @@ _RETRIES = 3
 _STALL_S = 60.0
 _CLOSER_M = 3.0
 _MODE_GRACE_S = 2.0
+
+log = logging.getLogger(__name__)
+_mavsdk_log = logging.getLogger("mavsdk")
+_LOG_LEVELS = {LogLevel.DEBUG: logging.DEBUG, LogLevel.INFO: logging.INFO,
+               LogLevel.WARN: logging.WARNING, LogLevel.ERROR: logging.ERROR}
 
 
 class MavsdkDrone(Drone):
@@ -57,6 +64,7 @@ class MavsdkDrone(Drone):
 
     async def connect(self, timeout: float = 30.0) -> None:
         """Connects to PX4 and waits until it has a position fix, a home position and telemetry."""
+        log_subscribe(_forward_mavsdk_log)
         self._mavsdk = Mavsdk(Configuration.create_with_component_type(ComponentType.GROUND_STATION))
         await self._mavsdk.add_any_connection(self._address)
         system = await self._mavsdk.first_autopilot(timeout_s=timeout)
@@ -74,7 +82,7 @@ class MavsdkDrone(Drone):
             asyncio.create_task(self._watch(t.subscribe_battery(), self._set("_battery"))),
             asyncio.create_task(self._watch(t.subscribe_armed(), self._set("_armed"))),
             asyncio.create_task(self._watch(t.subscribe_in_air(), self._set("_in_air"))),
-            asyncio.create_task(self._watch(t.subscribe_flight_mode(), self._set("_flight_mode"))),
+            asyncio.create_task(self._watch(t.subscribe_flight_mode(), self._on_flight_mode)),
             asyncio.create_task(self._watch(t.subscribe_health(), self._set("_health"))),
             asyncio.create_task(self._watch(self._mission.subscribe_mission_progress(), self._set("_mission_progress"))),
         ]
@@ -85,6 +93,7 @@ class MavsdkDrone(Drone):
             timeout, "a position fix, home position and telemetry",
         )
         await self._mission.set_return_to_launch_after_mission(False)
+        log.info("connected to PX4 at %s", self._address)
 
     async def arm(self) -> None:
         await self._command(self._action.arm, lambda: self._armed, "arm")
@@ -284,6 +293,11 @@ class MavsdkDrone(Drone):
     def _set(self, name: str):
         return lambda value: setattr(self, name, value)
 
+    def _on_flight_mode(self, mode: FlightMode) -> None:
+        if mode != self._flight_mode:
+            log.debug("PX4 flight mode %s", mode.name)
+        self._flight_mode = mode
+
     def _on_position(self, position) -> None:
         self._position = position
         self._position_time = time.monotonic()
@@ -312,3 +326,9 @@ def _distance_m(a: Waypoint, b: Waypoint) -> float:
     dx = _EARTH_R * math.radians(b.lon - a.lon) * math.cos(math.radians(a.lat))
     dy = _EARTH_R * math.radians(b.lat - a.lat)
     return math.sqrt(dx * dx + dy * dy + (b.alt - a.alt) ** 2)
+
+
+def _forward_mavsdk_log(level: LogLevel, message: str, file: str | None, line: int) -> bool:
+    """Passes one of MAVSDK's own messages to Python's logging, so MAVSDK doesn't print it as well."""
+    _mavsdk_log.log(_LOG_LEVELS.get(level, logging.INFO), message)
+    return True

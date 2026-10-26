@@ -80,3 +80,12 @@ def test_wanted_skips_approved_labels_and_rejected_spots():
     assert wanted(Sighting("person", near(30)), [], rejected, 11.0)
     assert wanted(Sighting("tent", HERE), [], rejected, 11.0)
     assert not wanted(Sighting("tent", HERE), [Sighting("tent", near(500))], rejected, 11.0)
+
+
+def test_describe_shows_which_recent_frames_saw_each_label(window):
+    window.add([Sighting("person", near(0))])
+    window.add([])
+    window.add([Sighting("person", near(1)), Sighting("tent", near(50))])
+    status = window.describe()
+    assert "person" in status and "tent" in status
+    assert status.count("x") == 3

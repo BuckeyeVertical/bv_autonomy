@@ -1,3 +1,4 @@
+import logging
 import math
 from dataclasses import replace
 from datetime import datetime
@@ -121,7 +122,7 @@ def test_geotag_failure_keeps_usable_jpeg_and_logs_error(make_recorder, camera_e
     recorder.add(frame)
     recorder.flush()
     assert cv2.imread(str(recorder.rows()[1][0])) is not None
-    assert "EXIF insert failed" in caplog.text
+    assert [r.levelno for r in caplog.records if r.name == recording.__name__] == [logging.ERROR]
 
 
 @pytest.mark.parametrize("altitude", [None, -12.345])

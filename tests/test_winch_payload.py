@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from types import SimpleNamespace
 
@@ -125,3 +126,21 @@ async def test_unknown_slot_and_pick_up_are_refused():
         await payload.release("beacon")
     with pytest.raises(NotImplementedError):
         await payload.pick_up()
+
+
+async def test_each_stage_of_the_drop_is_logged_once(caplog):
+    with caplog.at_level(logging.INFO, logger=ap.__name__):
+        await WinchPayload(ActuatorDrone(), config()).release("bottle")
+    stages = len(DropSequence(config(), "bottle").stages)
+    lines = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert len(lines) == stages + 1
+    assert len(set(lines)) == len(lines)
+
+
+async def test_unconfirmed_commands_are_warned_about_once_until_they_recover(caplog, monkeypatch):
+    monkeypatch.setattr(ap, "_RETRY_S", 0.001)
+    with caplog.at_level(logging.INFO, logger=ap.__name__):
+        await WinchPayload(ActuatorDrone(failures=4), config()).start()
+    levels = [r.levelno for r in caplog.records]
+    assert levels.count(logging.WARNING) == 1
+    assert levels[-1] == logging.INFO
