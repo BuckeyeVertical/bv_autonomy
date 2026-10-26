@@ -28,6 +28,9 @@ class FakeStitcher(Stitcher):
         step = max(1, frame.image.shape[1] // self._thumb_width)
         self.thumbnails.append(frame.image[::step, ::step].copy())
 
+    async def stop(self) -> None:
+        pass
+
     def progress(self) -> StitchProgress | None:
         return None
 

@@ -331,3 +331,13 @@ async def test_main_disconnects_even_when_the_mission_fails(site, drone, monkeyp
     assert calls == ["connected", "disconnected"]
 
 
+async def test_mission_disconnect_stops_its_parts_and_the_platform(make_mission, drone, gcs, monkeypatch):
+    mission = make_mission()
+    await mission.connect()
+    stopped = []
+    monkeypatch.setattr(gcs, "stop", AsyncMock(side_effect=lambda: stopped.append("gcs")))
+    monkeypatch.setattr(mission.detector, "stop", AsyncMock(side_effect=lambda: stopped.append("detector")))
+    monkeypatch.setattr(mission.stitcher, "stop", AsyncMock(side_effect=lambda: stopped.append("stitcher")))
+    monkeypatch.setattr(mission.platform, "stop", AsyncMock(side_effect=lambda: stopped.append("platform")))
+    await mission.disconnect()
+    assert stopped == ["gcs", "detector", "stitcher", "platform"]

@@ -12,6 +12,11 @@ class Stitcher(ABC):
     @abstractmethod
     async def stitch(self) -> Path:
         """Builds the map from the frames kept and returns the path to its image."""
+
+    @abstractmethod
+    async def stop(self) -> None:
+        """Finishes writing the frames kept and ends any work still running."""
+
     @abstractmethod
     def progress(self) -> StitchProgress | None:
         """Returns where the stitcher is in the scan, to save for a resume, or None if it has nothing to save."""

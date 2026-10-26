@@ -7,6 +7,10 @@ class Payload(ABC):
         """Puts the payload in its resting position, holding everything, before the drone arms."""
 
     @abstractmethod
+    async def stop(self) -> None:
+        """Leaves the payload at rest, holding whatever it still carries."""
+
+    @abstractmethod
     async def release(self, slot: str) -> None:
         """Releases the payload held in the given slot."""
 

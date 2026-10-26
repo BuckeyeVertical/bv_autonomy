@@ -18,6 +18,9 @@ class FakePayload(Payload):
     async def start(self) -> None:
         self.log.append((time.monotonic(), "start", ""))
 
+    async def stop(self) -> None:
+        self.log.append((time.monotonic(), "stop", ""))
+
     async def release(self, slot: str) -> None:
         if self.held.get(slot, 0) <= 0:
             raise RuntimeError(f"nothing left to release in {slot!r}")

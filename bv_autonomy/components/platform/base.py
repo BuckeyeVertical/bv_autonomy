@@ -19,4 +19,5 @@ class Platform(ABC):
     async def stop(self) -> None:
         """Stops the camera, leaves the payload at rest, then disconnects the drone."""
         await self.camera.stop()
+        await self.payload.stop()
         await self.drone.disconnect()

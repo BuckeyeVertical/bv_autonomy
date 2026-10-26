@@ -80,6 +80,12 @@ class FrameRecorder:
             write.result()
         self._writes.clear()
 
+    def close(self) -> None:
+        """Waits for the frames still being written, then ends the writer thread. Blocks, so run it off the
+        event loop.
+        """
+        self._writer.shutdown(wait=True)
+
     def progress(self) -> StitchProgress:
         """Returns the current row, its heading and where the last frame was kept."""
         return StitchProgress(self._row, self._row_heading, self._last)

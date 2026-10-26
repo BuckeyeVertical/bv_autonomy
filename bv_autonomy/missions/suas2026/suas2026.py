@@ -183,6 +183,7 @@ class Suas2026(Mission):
         """Stops the GCS, the detector and the stitcher, then the platform's camera, payload and drone."""
         await self.gcs.stop()
         await self.detector.stop()
+        await self.stitcher.stop()
         await self.platform.stop()
 
     def preflight_checks(self, resuming: bool = False):

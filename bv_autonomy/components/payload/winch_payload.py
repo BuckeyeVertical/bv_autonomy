@@ -166,6 +166,11 @@ class WinchPayload(Payload):
         """Puts the plate at hold and opens the clamp, which PX4 keeps once the drone arms."""
         await self._settle(self._config.plate_hold_us, self._config.unclamped_us)
 
+    async def stop(self) -> None:
+        """Puts the plate at hold and opens the clamp, warning instead of raising if PX4 doesn't confirm it."""
+        if not await self._set(self._config.plate_hold_us, self._config.unclamped_us):
+            log.warning("payload rest position not confirmed while stopping")
+
     async def release(self, slot: str) -> None:
         """Drops the payload in the given slot and returns the plate and clamp to rest."""
         if slot not in self._config.drops:

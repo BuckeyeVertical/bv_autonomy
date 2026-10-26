@@ -39,3 +39,12 @@ def test_a_given_sim_address_is_used_as_is():
     assert SimPlatform("udpin://0.0.0.0:14999").drone._address == "udpin://0.0.0.0:14999"
 
 
+async def test_stopping_a_platform_stops_the_camera_rests_the_payload_and_disconnects_the_drone(drone):
+    platform = FakePlatform(drone)
+    await platform.camera.start()
+    await platform.stop()
+    assert platform.camera._task is None
+    assert [action for _, action, _ in platform.payload.log] == ["stop"]
+    assert drone._task is None
+
+

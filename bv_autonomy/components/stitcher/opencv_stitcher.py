@@ -44,6 +44,9 @@ class OpencvStitcher(Stitcher):
     def add(self, frame: Frame) -> None:
         self._recorder.add(frame)
 
+    async def stop(self) -> None:
+        await asyncio.to_thread(self._recorder.close)
+
     def progress(self) -> StitchProgress | None:
         return self._recorder.progress()
 

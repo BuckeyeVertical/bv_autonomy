@@ -144,3 +144,12 @@ async def test_unconfirmed_commands_are_warned_about_once_until_they_recover(cap
     levels = [r.levelno for r in caplog.records]
     assert levels.count(logging.WARNING) == 1
     assert levels[-1] == logging.INFO
+
+
+async def test_stopping_rests_the_payload_and_never_raises(caplog):
+    drone = ActuatorDrone()
+    await WinchPayload(drone, config()).stop()
+    assert drone.last(2) == round(PLATE.value(HOLD), 4) and drone.last(1) == round(CLAMP.value(OPEN), 4)
+    with caplog.at_level(logging.WARNING):
+        await WinchPayload(ActuatorDrone(failures=100), config()).stop()
+    assert any(r.levelno == logging.WARNING for r in caplog.records)
