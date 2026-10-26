@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from bv_autonomy import paths
 from bv_autonomy.components.gcs.crop import annotated_crop
@@ -50,10 +51,11 @@ LAP_TOLERANCE = 40.0
 
 @dataclass(frozen=True)
 class Site:
-    """Where the mission flies: the lap route and the four corners of the search area."""
+    """Where the mission flies: the lap route, the four corners of the search area, and the field's terrain map."""
 
     laps: WaypointSequence
     scan_area: WaypointSequence
+    terrain_map: Path
 
 
 @dataclass

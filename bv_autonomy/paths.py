@@ -16,6 +16,9 @@ GCS_WEB_DIST = WORKSPACE_DIR / "bv_gcs" / "web" / "dist"
 MODELS_DIR = REPO_DIR / "models"
 LTDETR_WEIGHTS = MODELS_DIR / "ltdetr.pt"
 
+TERRAIN_MAPS_DIR = REPO_DIR / "terrain_maps"
+SUAS2026_DEM = TERRAIN_MAPS_DIR / "suas2026.tif"
+
 OUTPUT_DIR = REPO_DIR / "output"
 SUAS2026_OUTPUT = OUTPUT_DIR / "suas2026"
 

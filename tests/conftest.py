@@ -107,7 +107,7 @@ async def clean_background_tasks():
 
 
 @pytest.fixture
-def site():
+def site(tmp_path):
     return Site(
         laps=WaypointSequence([
             Waypoint(36.0, -96.0, 10),
@@ -120,6 +120,7 @@ def site():
             (36.0012, -96.0002),
             (36.0012, -96.0020),
         ]),
+        terrain_map=tmp_path / "terrain.tif",
     )
 
 

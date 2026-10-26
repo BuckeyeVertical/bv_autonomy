@@ -1,3 +1,4 @@
+from bv_autonomy import paths
 from bv_autonomy.missions.suas2026.suas2026 import LAP_ALT, Site
 from bv_autonomy.types import WaypointSequence
 
@@ -22,4 +23,5 @@ SIM = Site(
         (36.218054, -96.007835),
         (36.217645, -96.010709),
     ]),
+    terrain_map=paths.SUAS2026_DEM,
 )

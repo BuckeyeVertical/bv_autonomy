@@ -13,7 +13,7 @@ Keep this file general and useful: only what agents need to write, test and debu
 
 Run Python with the repo's venv (`.venv/bin/python`, or `uv run`).
 
-Tests: install `.[dev,gcs,mavsdk,localizer,opencv,stitcher]`, then run `.venv/bin/python -m pytest`.
+Tests: install `.[dev,gcs,mavsdk,localizer,opencv,stitcher,terrain]`, then run `.venv/bin/python -m pytest`.
 
 Every component has a fake next to its real implementations (`FakeDrone`, `FakeCamera`,
 `FakeDetector`, `FakePayload`, `FakeStitcher`, `NullGcs`, `FakePlatform`). Use them to run mission logic on
