@@ -141,17 +141,17 @@ def targets():
 
 
 @pytest.fixture
-def make_mission(site, drone, gcs, targets, tmp_path, monkeypatch):
-    from bv_autonomy.missions.suas2026 import suas2026
-
+def make_mission(site, drone, gcs, targets, tmp_path):
+    """Builds missions on a fake platform, with fakes in place of whichever detector, stitcher and GCS they use."""
     small = Intrinsics(width=100, height=100, fx=100, fy=100, cx=50, cy=50, dist=np.zeros(5))
     platform = FakePlatform(drone, targets, small, fps=50)
-    monkeypatch.setattr(suas2026, "BvGcs", lambda **kwargs: gcs)
-    monkeypatch.setattr(suas2026, "LtdetrDetector", lambda **kwargs: FakeDetector(targets))
-    monkeypatch.setattr(suas2026, "OpencvStitcher", lambda **kwargs: FakeStitcher(tmp_path / "map", keep_every=1))
 
     def make(state=None):
-        return Suas2026(site, state if state is not None else MissionState.new(site, BEVY_INTRINSICS), platform)
+        mission = Suas2026(site, state if state is not None else MissionState.new(site, BEVY_INTRINSICS), platform)
+        mission.detector = FakeDetector(targets)
+        mission.stitcher = FakeStitcher(tmp_path / "map", keep_every=1)
+        mission.gcs = gcs
+        return mission
 
     return make
 

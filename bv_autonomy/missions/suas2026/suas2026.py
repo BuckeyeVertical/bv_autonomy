@@ -269,9 +269,19 @@ class Suas2026(Mission):
             self.state.save()
 
     async def return_home(self):
-        """Flies back to the home position and lands there."""
+        """Flies back to the home position and lands there, building the map from the scan on the way."""
         self.gcs.report("mission_state", {"state": "return"})
-        await self.drone.return_home()
+        await self.detector.stop()
+        stitching = asyncio.create_task(self.stitcher.stitch())
+        try:
+            await self.drone.return_home()
+        except BaseException:
+            stitching.cancel()
+            raise
+        try:
+            log.info("map saved to %s", await stitching)
+        except Exception:
+            log.exception("could not build the map")
 
     async def locate_again(self, target: Sighting) -> tuple[Detection, Waypoint] | None:
         """Finds the target again in fresh frames and returns its detection and position, or None if it isn't
