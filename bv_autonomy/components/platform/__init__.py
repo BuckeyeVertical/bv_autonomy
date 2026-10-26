@@ -1,6 +1,6 @@
-from .base import Platform
+from .base import Platform, stop_all
 
-__all__ = ["Platform", "FakePlatform", "SimPlatform", "PhysicalPlatform"]
+__all__ = ["Platform", "stop_all", "FakePlatform", "SimPlatform", "PhysicalPlatform"]
 
 
 def __getattr__(name: str):

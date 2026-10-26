@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from unittest.mock import AsyncMock
 
 import pytest
@@ -341,3 +342,28 @@ async def test_mission_disconnect_stops_its_parts_and_the_platform(make_mission,
     monkeypatch.setattr(mission.platform, "stop", AsyncMock(side_effect=lambda: stopped.append("platform")))
     await mission.disconnect()
     assert stopped == ["gcs", "detector", "stitcher", "platform"]
+
+
+async def test_a_failing_stop_still_stops_everything_after_it(make_mission, drone, gcs, monkeypatch, caplog):
+    mission = make_mission()
+    await mission.connect()
+    error = RuntimeError("dashboard socket broke")
+    stopped = []
+
+    async def broken_stop():
+        raise error
+
+    def recording(name):
+        async def stop():
+            stopped.append(name)
+        return stop
+
+    monkeypatch.setattr(gcs, "stop", broken_stop)
+    monkeypatch.setattr(mission.detector, "stop", recording("detector"))
+    monkeypatch.setattr(mission.stitcher, "stop", recording("stitcher"))
+    monkeypatch.setattr(mission.platform, "stop", recording("platform"))
+    with pytest.raises(RuntimeError) as raised:
+        await mission.disconnect()
+    assert raised.value is error
+    assert stopped == ["detector", "stitcher", "platform"]
+    assert any(r.levelno == logging.ERROR and r.exc_info for r in caplog.records)

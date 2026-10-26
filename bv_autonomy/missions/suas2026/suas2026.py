@@ -10,7 +10,7 @@ from bv_autonomy.components.detector import LtdetrDetector
 from bv_autonomy.components.gcs import BvGcs
 from bv_autonomy.components.localizer import GimbalNadirLocalizer
 from bv_autonomy.components.path_planner import SPathPlanner
-from bv_autonomy.components.platform import Platform
+from bv_autonomy.components.platform import Platform, stop_all
 from bv_autonomy.components.stitcher import OpencvStitcher
 from bv_autonomy.missions import base
 from bv_autonomy.missions.base import Mission
@@ -178,11 +178,8 @@ class Suas2026(Mission):
         log.info("preflight checks passed")
 
     async def disconnect(self):
-        """Stops the GCS, the detector and the stitcher, then the platform's camera, payload and drone."""
-        await self.gcs.stop()
-        await self.detector.stop()
-        await self.stitcher.stop()
-        await self.platform.stop()
+        """Stops the GCS, the detector and the stitcher, then the platform."""
+        await stop_all(self.gcs.stop, self.detector.stop, self.stitcher.stop, self.platform.stop)
 
     def preflight_checks(self, resuming: bool = False):
         """Raises if the drone isn't ready to start the mission."""

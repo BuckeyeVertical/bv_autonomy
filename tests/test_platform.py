@@ -1,3 +1,5 @@
+import pytest
+
 from bv_autonomy.components.camera import BevyCamera, FakeCamera, Rx0Camera
 from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
 from bv_autonomy.components.camera.rx0_camera import RX0_INTRINSICS
@@ -63,3 +65,19 @@ async def test_starting_a_platform_connects_the_drone_before_the_payload_and_cam
     await platform.start()
     assert order == ["drone", "payload", "camera"]
     await platform.stop()
+
+
+async def test_a_failing_camera_stop_still_rests_the_payload_and_disconnects_the_drone(drone, monkeypatch):
+    platform = FakePlatform(drone)
+    await platform.start()
+    error = RuntimeError("camera thread stuck")
+
+    async def broken_stop():
+        raise error
+
+    monkeypatch.setattr(platform.camera, "stop", broken_stop)
+    with pytest.raises(RuntimeError) as raised:
+        await platform.stop()
+    assert raised.value is error
+    assert [action for _, action, _ in platform.payload.log][-1] == "stop"
+    assert drone._task is None

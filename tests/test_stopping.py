@@ -1,9 +1,11 @@
 import asyncio
+import logging
 import math
 from dataclasses import replace
 
 import pytest
 
+from bv_autonomy.components.platform import stop_all
 from bv_autonomy.components.stitcher import odm_stitcher
 from bv_autonomy.components.stitcher.frame_recorder import FrameRecorder
 from bv_autonomy.components.stitcher.opencv_stitcher import OpencvStitcher
@@ -90,3 +92,21 @@ async def test_stopping_the_odm_stitcher_stops_its_named_container(docker, tmp_p
                                         output_dir=tmp_path)
     await stitcher.stop()
     assert docker.stops() == [stitcher._container]
+
+
+async def test_stop_all_runs_every_stop_in_order_and_raises_the_first_failure(caplog):
+    ran = []
+    first, second = RuntimeError("first"), RuntimeError("second")
+
+    def step(name, error=None):
+        async def stop():
+            ran.append(name)
+            if error:
+                raise error
+        return stop
+
+    with pytest.raises(RuntimeError) as raised:
+        await stop_all(step("a"), step("b", first), step("c", second), step("d"))
+    assert ran == ["a", "b", "c", "d"]
+    assert raised.value is first
+    assert sum(r.levelno == logging.ERROR and r.exc_info is not None for r in caplog.records) == 2
