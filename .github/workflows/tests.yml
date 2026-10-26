@@ -8,9 +8,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject co-authored commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          found=0
+          for sha in $(git rev-list "$BASE..$HEAD"); do
+            if git log -1 --format=%B "$sha" | grep -qi '^co-authored-by:'; then
+              echo "::error::$(git log -1 --format='%h %s' "$sha") has a Co-authored-by trailer"
+              found=1
+            fi
+          done
+          exit $found
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install ".[dev,gcs,mavsdk,localizer,opencv,stitcher]"
+      - run: pip install ".[dev,gcs,mavsdk,localizer,opencv,stitcher,terrain]"
       - run: python -m pytest
