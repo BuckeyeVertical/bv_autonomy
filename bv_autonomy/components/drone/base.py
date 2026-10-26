@@ -9,6 +9,10 @@ class Drone(ABC):
     async def connect(self) -> None: ...
 
     @abstractmethod
+    async def disconnect(self) -> None:
+        """Stops listening to the drone and releases the connection."""
+
+    @abstractmethod
     async def arm(self) -> None: ...
 
     @abstractmethod

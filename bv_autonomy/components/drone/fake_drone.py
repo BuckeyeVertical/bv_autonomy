@@ -1,6 +1,7 @@
 """Drone that only exists in memory, so missions run on a laptop in seconds."""
 
 import asyncio
+import contextlib
 import math
 import time
 from collections.abc import Callable
@@ -37,6 +38,14 @@ class FakeDrone(Drone):
     async def connect(self) -> None:
         if self._task is None:
             self._task = asyncio.create_task(self._simulate())
+
+    async def disconnect(self) -> None:
+        if self._task is None:
+            return
+        self._task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await self._task
+        self._task = None
 
     async def arm(self) -> None:
         self._armed = True

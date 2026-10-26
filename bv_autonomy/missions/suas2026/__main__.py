@@ -16,8 +16,11 @@ async def main(resume: bool):
     state = MissionState.load() if resume else MissionState.new(SIM, platform.intrinsics)
     state.save()
     mission = Suas2026(SIM, state, platform)
-    await mission.connect(resuming=resume)
-    await mission.start()
+    try:
+        await mission.connect(resuming=resume)
+        await mission.start()
+    finally:
+        await mission.disconnect()
 
 
 if __name__ == "__main__":

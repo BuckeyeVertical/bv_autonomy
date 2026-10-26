@@ -339,3 +339,31 @@ async def test_goto_to_where_the_drone_already_is_flies_nothing(mavdrone, monkey
     start.assert_not_awaited()
 
 
+async def test_disconnect_ends_subscriptions_before_releasing_mavsdk():
+    drone = md.MavsdkDrone()
+    events = []
+
+    async def subscription():
+        try:
+            await asyncio.Event().wait()
+        finally:
+            events.append("unsubscribed")
+
+    class Releasable:
+        def __init__(self, name):
+            self.name = name
+
+        def destroy(self):
+            events.append(self.name)
+
+    drone._tasks = [asyncio.create_task(subscription()), asyncio.create_task(subscription())]
+    await asyncio.sleep(0)
+    drone._action, drone._mission, drone._telemetry = Releasable("action"), Releasable("mission"), Releasable("telemetry")
+    drone._mavsdk = Releasable("mavsdk")
+    await drone.disconnect()
+    assert events == ["unsubscribed", "unsubscribed", "action", "mission", "telemetry", "mavsdk"]
+    assert drone._mavsdk is None and drone._tasks == []
+
+
+async def test_disconnect_before_connect_does_nothing():
+    await md.MavsdkDrone().disconnect()

@@ -235,11 +235,14 @@ async def test_main_saves_selected_state_before_connect(site, drone, monkeypatch
         async def start(self):
             calls.append("started")
 
+        async def disconnect(self):
+            calls.append("disconnected")
+
     monkeypatch.setattr(entry, "SIM", site)
     monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
-    assert calls == ["constructed", "connected", "started"]
+    assert calls == ["constructed", "connected", "started", "disconnected"]
 
 
 async def test_mission_ends_by_returning_home_and_landing(make_mission, drone, gcs):
@@ -283,6 +286,9 @@ async def test_a_fresh_run_archives_the_last_runs_outputs_and_a_resume_keeps_the
         async def start(self):
             pass
 
+        async def disconnect(self):
+            pass
+
     monkeypatch.setattr(entry, "SIM", site)
     monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
@@ -297,3 +303,31 @@ def test_the_map_is_written_under_the_missions_stitching_folder(site, drone):
 
     mission = Suas2026(site, MissionState.new(site, BEVY_INTRINSICS), FakePlatform(drone))
     assert mission.stitcher._output_dir == paths.SUAS2026_OUTPUT / "stitching"
+
+
+async def test_main_disconnects_even_when_the_mission_fails(site, drone, monkeypatch):
+    from bv_autonomy.missions.suas2026 import __main__ as entry
+
+    calls = []
+
+    class FailingMission:
+        def __init__(self, selected_site, state, platform):
+            pass
+
+        async def connect(self, resuming):
+            calls.append("connected")
+
+        async def start(self):
+            raise RuntimeError("PX4 switched to HOLD")
+
+        async def disconnect(self):
+            calls.append("disconnected")
+
+    monkeypatch.setattr(entry, "SIM", site)
+    monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
+    monkeypatch.setattr(entry, "Suas2026", FailingMission)
+    with pytest.raises(RuntimeError):
+        await entry.main(resume=False)
+    assert calls == ["connected", "disconnected"]
+
+

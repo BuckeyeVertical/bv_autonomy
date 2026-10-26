@@ -112,6 +112,7 @@ class Suas2026(Mission):
     def __init__(self, site: Site, state: MissionState, platform: Platform):
         self.site = site
         self.state = state
+        self.platform = platform
         self.drone = platform.drone
         self.camera = platform.camera
         self.payload = platform.payload
@@ -177,6 +178,12 @@ class Suas2026(Mission):
         await self.gcs.start()
         self.preflight_checks(resuming)
         log.info("preflight checks passed")
+
+    async def disconnect(self):
+        """Stops the GCS, the detector and the stitcher, then the platform's camera, payload and drone."""
+        await self.gcs.stop()
+        await self.detector.stop()
+        await self.platform.stop()
 
     def preflight_checks(self, resuming: bool = False):
         """Raises if the drone isn't ready to start the mission."""
