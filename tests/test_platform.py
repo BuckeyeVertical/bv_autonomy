@@ -48,3 +48,18 @@ async def test_stopping_a_platform_stops_the_camera_rests_the_payload_and_discon
     assert drone._task is None
 
 
+async def test_starting_a_platform_connects_the_drone_before_the_payload_and_camera(drone, monkeypatch):
+    platform = FakePlatform(drone)
+    order = []
+    connect, start_payload, start_camera = drone.connect, platform.payload.start, platform.camera.start
+
+    async def record(name, start):
+        order.append(name)
+        await start()
+
+    monkeypatch.setattr(drone, "connect", lambda: record("drone", connect))
+    monkeypatch.setattr(platform.payload, "start", lambda: record("payload", start_payload))
+    monkeypatch.setattr(platform.camera, "start", lambda: record("camera", start_camera))
+    await platform.start()
+    assert order == ["drone", "payload", "camera"]
+    await platform.stop()

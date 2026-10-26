@@ -16,6 +16,13 @@ class Platform(ABC):
     camera: Camera
     payload: Payload
     intrinsics: Intrinsics
+
+    async def start(self) -> None:
+        """Connects the drone, then puts the payload at rest and starts the camera, which both need it."""
+        await self.drone.connect()
+        await self.payload.start()
+        await self.camera.start()
+
     async def stop(self) -> None:
         """Stops the camera, leaves the payload at rest, then disconnects the drone."""
         await self.camera.stop()

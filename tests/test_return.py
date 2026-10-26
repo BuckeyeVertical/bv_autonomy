@@ -14,7 +14,7 @@ def scan_only(site):
     return MissionState(lap_route=WaypointSequence(), scan_route=MissionState.new(site, BEVY_INTRINSICS).scan_route)
 
 
-async def test_map_is_built_from_the_scan_frames_and_the_detector_is_stopped(make_mission, drone, site):
+async def test_map_is_built_from_the_scan_frames_and_the_detector_and_camera_are_stopped(make_mission, drone, site):
     drone._speedup = 100
     mission = make_mission(scan_only(site))
     await mission.camera.start()
@@ -23,6 +23,7 @@ async def test_map_is_built_from_the_scan_frames_and_the_detector_is_stopped(mak
     assert mission.stitcher.thumbnails
     assert list((mission.stitcher._output_dir).iterdir())
     assert not mission.detector._started
+    assert mission.camera._task is None
     assert not drone.in_air()
 
 

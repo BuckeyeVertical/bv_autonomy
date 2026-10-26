@@ -164,12 +164,10 @@ class Suas2026(Mission):
         else:
             log.info("starting a new mission with %d lap points and %d scan points",
                      len(self.state.lap_route), len(self.state.scan_route))
-        await self.drone.connect()
+        await self.platform.start()
         home = self.drone.home()
         log.info("drone home at %.6f, %.6f, battery %.0f%%", home.lat, home.lon, self.drone.battery() * 100)
-        await self.payload.start()
-        log.info("payload at rest")
-        await self.camera.start()
+        log.info("payload at rest and camera started")
         if self.state.stitching is not None:
             self.stitcher.resume(self.state.stitching)
         started = time.monotonic()
@@ -377,6 +375,7 @@ class Suas2026(Mission):
         self.gcs.report("mission_state", {"state": "return"})
         log.info("returning home and building the map")
         await self.detector.stop()
+        await self.camera.stop()
 
         async def stitch():
             started = time.monotonic()
