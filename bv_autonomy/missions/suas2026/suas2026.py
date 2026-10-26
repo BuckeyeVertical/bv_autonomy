@@ -258,7 +258,7 @@ class Suas2026(Mission):
             if reached:
                 log.debug("scan point %d of %d", reached, len(route))
             self.gcs.report_progress("scan", route, reached)
-            self.state.scan_route = WaypointSequence(route[reached:])
+            self.state.scan_route = WaypointSequence(route[reached - 1:] if 0 < reached < len(route) else route[reached:])
             self.state.save()
 
         flight = asyncio.create_task(self.drone.fly_mission(route, speed, tolerance, on_progress=record_progress))
@@ -324,6 +324,7 @@ class Suas2026(Mission):
         self.gcs.report("mission_state", {"state": "localize"})
         log.info("holding to look at the %s again", target.label)
         await self.drone.hold()
+        self.continue_scan_from_here()
         found = await self.locate_again(target)
         if found is None:
             log.warning("lost the %s after holding; resuming the scan", target.label)
@@ -346,10 +347,15 @@ class Suas2026(Mission):
             log.info("%s the %s at %.6f, %.6f", "operator approved" if answer else "no answer; approving",
                      target.label, position.lat, position.lon)
             self.state.targets.append(Sighting(target.label, position))
-            if self.state.scan_route:
-                here = self.drone.position()
-                self.state.scan_route = WaypointSequence([Waypoint(here.lat, here.lon, SCAN_ALT), *self.state.scan_route])
         self.state.save()
+
+    def continue_scan_from_here(self):
+        """Makes the scan segment being flown start where the drone is, so the scan carries on from here."""
+        if self.state.scan_route:
+            here = self.drone.position()
+            self.state.scan_route = WaypointSequence([Waypoint(here.lat, here.lon, SCAN_ALT),
+                                                      *self.state.scan_route[1:]])
+            self.state.save()
 
     async def deliver_approved(self):
         """Delivers a payload to each approved target."""

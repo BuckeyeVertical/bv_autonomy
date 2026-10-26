@@ -37,7 +37,8 @@ async def test_scan_transits_then_flies_rows_at_scan_speed(make_mission, drone, 
     assert MissionState.load().scan_route == []
 
 
-async def test_stop_mid_scan_and_resume_transits_to_next_point(make_mission, drone, gcs, site):
+async def test_stop_mid_scan_and_resume_re_flies_the_interrupted_segment_while_watching(make_mission, drone, gcs,
+                                                                                         site):
     mission = make_mission(scan_only(site))
     route = list(mission.state.scan_route)
     task = asyncio.create_task(mission.start())
@@ -46,13 +47,14 @@ async def test_stop_mid_scan_and_resume_transits_to_next_point(make_mission, dro
     with pytest.raises(asyncio.CancelledError):
         await task
     assert drone.holds == 1
+    reached = len(drone.reached)
     saved = MissionState.load()
-    assert saved.scan_route == route[len(drone.reached):]
-    next_point = saved.scan_route[0]
+    assert saved.scan_route == route[reached - 1:]
+    segment_start = saved.scan_route[0]
 
     await asyncio.wait_for(make_mission(saved).start(), 2)
-    assert drone.gotos[-1] == (next_point, TRANSIT_SPEED, SCAN_TOLERANCE)
-    assert drone.reached == route
+    assert drone.gotos[-1] == (segment_start, TRANSIT_SPEED, SCAN_TOLERANCE)
+    assert drone.reached == route[:reached] + route[reached - 1:]
     assert MissionState.load().scan_route == []
 
 
@@ -109,4 +111,4 @@ async def test_watch_failure_stops_scan_and_holds(make_mission, drone, site, mon
     with pytest.raises(RuntimeError, match="camera broke"):
         await asyncio.wait_for(mission.start(), 2)
     assert drone.holds == 1
-    assert MissionState.load().scan_route == route[len(drone.reached):]
+    assert MissionState.load().scan_route == route[max(len(drone.reached) - 1, 0):]

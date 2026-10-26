@@ -77,7 +77,7 @@ async def test_no_answer_counts_as_approved(make_mission, slow_drone, gcs, site,
     assert [t.label for t in MissionState.load().delivered] == ["person"]
 
 
-async def test_rejected_spot_is_saved_and_not_asked_about_again(make_mission, slow_drone, gcs, site, on_first_row):
+async def test_rejected_spot_is_saved_and_the_scan_carries_on_from_where_it_held(make_mission, slow_drone, gcs, site, on_first_row):
     gcs.answer = False
     mission = make_mission(scan_only(site))
     await fly(mission)
@@ -88,21 +88,27 @@ async def test_rejected_spot_is_saved_and_not_asked_about_again(make_mission, sl
     assert len(saved.rejected) == 2
     assert all(distance_m(r.position, on_first_row) < 2.0 for r in saved.rejected)
     assert saved.scan_route == []
+    request, _ = gcs.requests[0]
+    assert distance_m(slow_drone.gotos[1][0], request.drone_position) < 0.5
 
 
-async def test_target_lost_after_holding_resumes_scan_without_asking(
+async def test_target_lost_after_holding_carries_on_from_where_it_held_without_asking(
         make_mission, slow_drone, gcs, site, on_first_row, monkeypatch):
     monkeypatch.setattr(suas2026, "LOCATE_RETRY_S", 0.01)
     mission = make_mission(scan_only(site))
     hold = slow_drone.hold
 
+    held_at = []
+
     async def hold_and_lose_sight():
         mission.detector._targets.clear()
         await hold()
+        held_at.append(slow_drone.position())
 
     monkeypatch.setattr(slow_drone, "hold", hold_and_lose_sight)
     await fly(mission)
     assert slow_drone.holds == 1
+    assert distance_m(slow_drone.gotos[1][0], held_at[0]) < 0.5
     assert gcs.requests == []
     assert MissionState.load().targets == []
     assert MissionState.load().scan_route == []
