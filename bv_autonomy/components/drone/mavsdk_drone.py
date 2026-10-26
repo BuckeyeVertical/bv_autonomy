@@ -139,6 +139,11 @@ class MavsdkDrone(Drone):
         tolerance: float = 1.0,
         on_progress: Callable[[int], None] | None = None,
     ) -> None:
+        if len(route) == 1 and _distance_m(self.position(), route[0]) <= tolerance:
+            if on_progress:
+                on_progress(0)
+                on_progress(1)
+            return
         items = [_mission_item(point, speed, tolerance, fly_through=True) for point in route]
         await self._start_mission(items, route[-1], tolerance)
 

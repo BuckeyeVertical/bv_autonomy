@@ -367,3 +367,14 @@ async def test_disconnect_ends_subscriptions_before_releasing_mavsdk():
 
 async def test_disconnect_before_connect_does_nothing():
     await md.MavsdkDrone().disconnect()
+
+
+async def test_a_one_point_mission_to_where_the_drone_already_is_flies_nothing(mavdrone, monkeypatch):
+    start = AsyncMock()
+    monkeypatch.setattr(mavdrone, "_start_mission", start)
+    mavdrone._flight_mode = FlightMode.HOLD
+    here = mavdrone.position()
+    reported = []
+    await mavdrone.fly_mission(WaypointSequence([Waypoint(here.lat, here.lon, here.alt)]), 3.0, 1.0, reported.append)
+    start.assert_not_awaited()
+    assert reported == [0, 1]
