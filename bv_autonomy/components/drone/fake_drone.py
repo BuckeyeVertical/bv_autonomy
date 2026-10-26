@@ -71,7 +71,7 @@ class FakeDrone(Drone):
         for reached, point in enumerate(route, start=1):
             await self._fly_to(point, speed or self._default_speed, tolerance)
             if self._target is not point:
-                return               # told to hold partway through
+                return
             if on_progress:
                 on_progress(reached)
 
@@ -81,7 +81,7 @@ class FakeDrone(Drone):
     async def land(self) -> None:
         p = self._position
         await self._fly_to(Waypoint(p.lat, p.lon, 0.0), self._default_speed, 0.0)
-        self._armed = False                 # PX4 disarms itself after landing
+        self._armed = False
 
     async def return_home(self) -> None:
         cruise = max(self._position.alt, 1.0)
@@ -114,7 +114,7 @@ class FakeDrone(Drone):
         self._target, self._speed = point, speed
         while _offset_m(self._position, point)[3] > tolerance:
             if self._target is not point:
-                return                       # redirected or told to hold
+                return
             await asyncio.sleep(_TICK_S)
 
     async def _simulate(self) -> None:
@@ -133,7 +133,7 @@ class FakeDrone(Drone):
             step = min(1.0, self._speed * dt / horizontal) if horizontal > 1e-6 else 1.0
             climb = max(-self._climb_rate * dt, min(self._climb_rate * dt, up))
             if horizontal > 0.5:
-                self._yaw = math.atan2(east, north)  # faces the direction of travel
+                self._yaw = math.atan2(east, north)
             p = self._position
             self._position = Waypoint(
                 p.lat + math.degrees(north * step / _EARTH_R),

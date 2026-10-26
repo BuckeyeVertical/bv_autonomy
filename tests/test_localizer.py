@@ -8,7 +8,6 @@ from bv_autonomy.types import Detection, Waypoint
 
 @pytest.fixture
 def localizer():
-    # Exact angles avoid the rounded legacy mount calibration's small center offset.
     return GimbalNadirLocalizer(mount_xyz=(math.pi, 0, -math.pi / 2))
 
 
@@ -34,7 +33,6 @@ def test_image_center_projects_directly_below_drone(localizer, frame):
 def test_pixel_offsets_and_yaw_match_hand_computed_ground_position(localizer, frame, yaw, u, v, east, north):
     frame.pose.yaw = yaw
     point = localizer.locate(detection(frame, u, v))
-    # At the equator: longitude uses WGS84's equatorial radius; latitude uses its meridional radius.
     expected_lon = math.degrees(east / 6378137)
     expected_lat = math.degrees(north / 6335439.32729282)
     assert point.lon == pytest.approx(expected_lon, abs=1e-9)
@@ -68,7 +66,6 @@ def test_lens_distortion_is_removed_using_each_frames_calibration(localizer, fra
     x, y = 0.25, -0.2
     radius2 = x * x + y * y
     radial = 1 + 0.1 * radius2 - 0.02 * radius2 ** 2 + 0.01 * radius2 ** 3
-    # Forward distortion of a known ray supplies an independent input to the inverse projection.
     distorted_x = x * radial + 2 * 0.003 * x * y - 0.004 * (radius2 + 2 * x * x)
     distorted_y = y * radial + 0.003 * (radius2 + 2 * y * y) - 2 * 0.004 * x * y
     point = localizer.locate(detection(frame, 40 + 120 * distorted_x, 60 + 90 * distorted_y))

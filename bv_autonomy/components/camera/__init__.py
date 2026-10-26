@@ -5,7 +5,6 @@ __all__ = ["Camera", "FakeCamera", "BevyCamera", "GstreamerCamera", "Rx0Camera"]
 
 
 def __getattr__(name: str):
-    # Implementations load on first use, so importing Camera doesn't need OpenCV.
     if name == "BevyCamera":
         from .bevy_camera import BevyCamera
 

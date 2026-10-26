@@ -6,7 +6,7 @@ from typing import Literal
 from bv_autonomy.components.path_planner.base import PathPlanner
 from bv_autonomy.types import Intrinsics, Waypoint, WaypointSequence
 
-_EARTH_R = 6378137.0  # WGS-84 semi-major axis (meters)
+_EARTH_R = 6378137.0
 
 
 class SPathPlanner(PathPlanner):
@@ -56,7 +56,6 @@ class SPathPlanner(PathPlanner):
             raise ValueError("boundary must contain four ordered corners")
         points = [(p.lat, p.lon) for p in boundary]
 
-        # Pick which pair of opposite sides the rows run along.
         pair_a = (_distance_m(points[0], points[1]) + _distance_m(points[2], points[3])) / 2.0
         pair_b = (_distance_m(points[1], points[2]) + _distance_m(points[3], points[0])) / 2.0
         use_pair_a = pair_a >= pair_b
@@ -79,7 +78,6 @@ class SPathPlanner(PathPlanner):
                 row_start, row_end = row_end, row_start
             route.extend([row_start, row_end])
 
-        # Reversing the whole route keeps every row and turn, and changes which side is flown first.
         if self._start is not None and len(route) >= 2:
             first_is_top = route[0][0] >= route[-1][0]
             if first_is_top != (self._start == "top"):
@@ -92,8 +90,6 @@ def _row_offsets(span_m: float, footprint_m: float, overlap: float) -> list[floa
     """Distances of each row's center line from the first side, in meters."""
     if span_m <= footprint_m:
         return [span_m / 2.0]
-    # The first and last rows sit half a footprint in from the edges; the rest are spread
-    # evenly between them, no further apart than the overlap allows.
     center_span_m = span_m - footprint_m
     maximum_spacing_m = footprint_m * (1.0 - overlap)
     intervals = max(1, math.ceil(center_span_m / maximum_spacing_m))
@@ -102,7 +98,6 @@ def _row_offsets(span_m: float, footprint_m: float, overlap: float) -> list[floa
 
 
 def _distance_m(a: tuple[float, float], b: tuple[float, float]) -> float:
-    # Flat-earth approximation around b; accurate over a scan area.
     dx = _EARTH_R * math.radians(a[1] - b[1]) * math.cos(math.radians(b[0]))
     dy = _EARTH_R * math.radians(a[0] - b[0])
     return math.hypot(dx, dy)

@@ -23,12 +23,12 @@ def test_small_box_gets_at_least_min_px_of_context(frame):
 def test_large_crop_is_shrunk_to_max_px_on_its_longer_side(frame):
     image = decode(annotated_crop(detection(frame, (600, 200, 1400, 800))))
     assert max(image.shape[:2]) == 1024
-    assert image.shape[:2] == (512, 1024)          # 2000 x 1000 after clipping to the frame, halved
+    assert image.shape[:2] == (512, 1024)
 
 
 @pytest.mark.parametrize("box,window", [
-    ((0, 0, 10, 10), (0, 0, 320, 320)),                  # shifted in from the top-left corner
-    ((1990, 990, 2000, 1000), (1680, 680, 2000, 1000)),  # and from the bottom-right
+    ((0, 0, 10, 10), (0, 0, 320, 320)),
+    ((1990, 990, 2000, 1000), (1680, 680, 2000, 1000)),
 ])
 def test_window_shifts_inside_the_frame_instead_of_shrinking(box, window):
     assert _window(box, 2000, 1000, 2.5, 320) == window
@@ -37,5 +37,5 @@ def test_window_shifts_inside_the_frame_instead_of_shrinking(box, window):
 def test_box_and_label_are_drawn(frame):
     image = decode(annotated_crop(detection(frame, (980, 480, 1020, 520))))
     green = (image[:, :, 1] > 180) & (image[:, :, 0] < 140) & (image[:, :, 2] < 140)
-    assert green.sum() > 200                       # the box outline and the label chip
-    assert not green[150:170, 150:170].any()       # inside the box is left alone
+    assert green.sum() > 200
+    assert not green[150:170, 150:170].any()

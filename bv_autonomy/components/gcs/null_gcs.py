@@ -23,7 +23,7 @@ class NullGcs(Gcs):
         pass
 
     async def ask(self, request: ApprovalRequest, timeout: float) -> bool | None:
-        return None          # straight away; the mission falls back to its own rule
+        return None
 
     def signal(self, name: str) -> asyncio.Event:
         return self._signals.setdefault(name, asyncio.Event())

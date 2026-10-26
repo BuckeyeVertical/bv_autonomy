@@ -2,14 +2,16 @@ import argparse
 import asyncio
 import logging
 
+from bv_autonomy.components.platform import SimPlatform
 from bv_autonomy.missions.suas2026 import MissionState, Suas2026
 from bv_autonomy.missions.suas2026.sites import SIM
 
 
 async def main(resume: bool):
-    state = MissionState.load() if resume else MissionState.new(SIM)
+    platform = SimPlatform()
+    state = MissionState.load() if resume else MissionState.new(SIM, platform.intrinsics)
     state.save()
-    mission = Suas2026(SIM, state)
+    mission = Suas2026(SIM, state, platform)
     await mission.connect(resuming=resume)
     await mission.start()
 

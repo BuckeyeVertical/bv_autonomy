@@ -4,7 +4,6 @@ __all__ = ["Localizer", "GimbalNadirLocalizer"]
 
 
 def __getattr__(name: str):
-    # Implementations load on first use, so importing Localizer doesn't need OpenCV.
     if name == "GimbalNadirLocalizer":
         from .gimbal_nadir_localizer import GimbalNadirLocalizer
 

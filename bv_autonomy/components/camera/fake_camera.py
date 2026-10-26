@@ -11,7 +11,6 @@ from bv_autonomy.components.drone import Drone
 from bv_autonomy.fake_world import Target, project
 from bv_autonomy.types import Frame, Intrinsics
 
-# Bevy's camera: the RX0 at half resolution.
 BEVY_INTRINSICS = Intrinsics(width=1920, height=1080, fx=1148.2004184838818, fy=1148.2004184838818, cx=960.0, cy=540.0, dist=np.zeros(5))
 
 
@@ -55,7 +54,7 @@ class FakeCamera(Camera):
     async def _produce(self) -> None:
         while True:
             pose = self._drone.pose()
-            image = np.full((self._intrinsics.height, self._intrinsics.width, 3), (60, 120, 80), dtype=np.uint8)   # grass green
+            image = np.full((self._intrinsics.height, self._intrinsics.width, 3), (60, 120, 80), dtype=np.uint8)
             for target in self._targets:
                 box = project(target, pose, self._intrinsics, self._intrinsics.width, self._intrinsics.height)
                 if box is not None:

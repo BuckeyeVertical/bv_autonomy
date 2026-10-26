@@ -5,7 +5,6 @@ __all__ = ["Drone", "FakeDrone", "MavsdkDrone"]
 
 
 def __getattr__(name: str):
-    # Implementations load on first use, so importing Drone doesn't need MAVSDK.
     if name == "MavsdkDrone":
         from .mavsdk_drone import MavsdkDrone
 

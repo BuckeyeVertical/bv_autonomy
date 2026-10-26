@@ -6,10 +6,11 @@ import pytest
 import pytest_asyncio
 
 from bv_autonomy import paths
-from bv_autonomy.components.camera import FakeCamera
+from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
 from bv_autonomy.components.detector import FakeDetector
 from bv_autonomy.components.drone import FakeDrone
 from bv_autonomy.components.gcs import NullGcs
+from bv_autonomy.components.platform import FakePlatform
 from bv_autonomy.components.stitcher import FakeStitcher
 from bv_autonomy.missions import base
 from bv_autonomy.missions.suas2026 import MissionState, Site, Suas2026
@@ -22,7 +23,7 @@ class RecordingGcs(NullGcs):
         self.reports = []
         self.previews = []
         self.requests = []
-        self.answer = None          # what ask() answers: True, False, or None for no answer
+        self.answer = None
         self.changed = asyncio.Event()
 
     def report(self, event, data):
@@ -95,7 +96,6 @@ def isolate_paths(tmp_path, monkeypatch):
 async def clean_background_tasks():
     before = asyncio.all_tasks()
     yield
-    # The fakes have no disconnect API; also clean up children left by cancelled laps.
     pending = [task for task in asyncio.all_tasks() - before
                if task is not asyncio.current_task() and not task.done()]
     for task in pending:
@@ -142,18 +142,16 @@ def targets():
 
 @pytest.fixture
 def make_mission(site, drone, gcs, targets, tmp_path, monkeypatch):
-    # Replace constructors before __init__, so no real GCS, MAVSDK, camera or model is used.
     from bv_autonomy.missions.suas2026 import suas2026
 
     small = Intrinsics(width=100, height=100, fx=100, fy=100, cx=50, cy=50, dist=np.zeros(5))
-    monkeypatch.setattr(suas2026, "MavsdkDrone", lambda: drone)
+    platform = FakePlatform(drone, targets, small, fps=50)
     monkeypatch.setattr(suas2026, "BvGcs", lambda **kwargs: gcs)
-    monkeypatch.setattr(suas2026, "BevyCamera", lambda drone: FakeCamera(drone, targets, small, fps=50))
     monkeypatch.setattr(suas2026, "LtdetrDetector", lambda **kwargs: FakeDetector(targets))
     monkeypatch.setattr(suas2026, "OpencvStitcher", lambda **kwargs: FakeStitcher(tmp_path / "map", keep_every=1))
 
     def make(state=None):
-        return Suas2026(site, state if state is not None else MissionState.new(site))
+        return Suas2026(site, state if state is not None else MissionState.new(site, BEVY_INTRINSICS), platform)
 
     return make
 

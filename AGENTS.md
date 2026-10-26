@@ -16,7 +16,7 @@ Run Python with the repo's venv (`.venv/bin/python`, or `uv run`).
 Tests: install `.[dev,gcs,mavsdk,localizer,opencv,stitcher]`, then run `.venv/bin/python -m pytest`.
 
 Every component has a fake next to its real implementations (`FakeDrone`, `FakeCamera`,
-`FakeDetector`, `FakePayload`, `FakeStitcher`, `NullGcs`). Use them to run mission logic on
+`FakeDetector`, `FakePayload`, `FakeStitcher`, `NullGcs`, `FakePlatform`). Use them to run mission logic on
 a laptop in seconds before going to the simulator.
 
 ## Simulator

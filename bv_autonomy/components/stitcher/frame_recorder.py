@@ -81,7 +81,7 @@ class FrameRecorder:
         return footprint_m * (1.0 - self._overlap)
 
     def _write(self, path: Path, frame: Frame, captured_at: datetime) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)     # made on first use, so unused stitchers leave no folder
+        path.parent.mkdir(parents=True, exist_ok=True)
         if not cv2.imwrite(str(path), frame.image):
             raise OSError(f"could not write {path}")
         if self._camera is None:
@@ -91,9 +91,8 @@ class FrameRecorder:
         geotag = FrameGeotag(p.lat, p.lon, altitude, captured_at, math.degrees(frame.pose.yaw) % 360.0)
         height, width = frame.image.shape[:2]
         try:
-            # Spliced into the file already written, so the pixels aren't re-encoded.
             piexif.insert(build_exif_bytes(self._camera, geotag, width, height), str(path))
-        except Exception as exc:            # an untagged frame is still a usable frame
+        except Exception as exc:
             log.error("could not geotag %s: %s", path, exc)
 
 

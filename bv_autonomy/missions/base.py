@@ -19,7 +19,7 @@ class MissionState(ABC):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(asdict(self)))
-        os.replace(tmp, self.path)       # a crash mid-write leaves the previous file whole
+        os.replace(tmp, self.path)
 
     @classmethod
     def load(cls) -> Self:
@@ -40,7 +40,7 @@ class Mission(ABC):
         """Every mission inherits this. Don't override it."""
         try:
             await self.run()
-        except BaseException:               # also Ctrl+C, which arrives as a cancellation
+        except BaseException:
             await self.on_abort()
             raise
 

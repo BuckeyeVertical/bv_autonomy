@@ -5,7 +5,6 @@ __all__ = ["Stitcher", "FakeStitcher", "OpencvStitcher", "OdmStitcher"]
 
 
 def __getattr__(name: str):
-    # Implementations load on first use, so importing Stitcher doesn't need OpenCV or piexif.
     if name == "OpencvStitcher":
         from .opencv_stitcher import OpencvStitcher
 

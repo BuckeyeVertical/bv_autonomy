@@ -4,7 +4,7 @@ from bv_autonomy.missions.suas2026.confirmation import ConfirmationWindow, Sight
 from bv_autonomy.types import Waypoint
 
 HERE = Waypoint(36.0, -96.0, 0.0)
-M = 1 / 111_320          # about one meter of latitude, in degrees
+M = 1 / 111_320
 
 
 def near(meters_north: float) -> Waypoint:
@@ -34,7 +34,7 @@ def test_a_hit_older_than_the_window_no_longer_counts(window):
     window.add([Sighting("person", near(0))])
     for _ in range(4):
         window.add([])
-    assert window.add([Sighting("person", near(0))]) is None      # the first hit just left the window
+    assert window.add([Sighting("person", near(0))]) is None
     assert window.add([Sighting("person", near(0))]).label == "person"
 
 

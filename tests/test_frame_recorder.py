@@ -106,7 +106,6 @@ def test_written_jpeg_preserves_calibration_terrain_height_and_capture_metadata(
     assert ratio(gps[piexif.GPSIFD.GPSImgDirection]) == 270
     assert exif[piexif.ExifIFD.DateTimeOriginal] == b"2026:10:23 12:34:56"
     assert exif[piexif.ExifIFD.SubSecTimeOriginal] == b"123"
-    # Resizing changes pixels per inch, while the physical focal length and sensor stay fixed.
     assert ratio(exif[piexif.ExifIFD.FocalLength]) == 6
     assert ratio(exif[piexif.ExifIFD.FocalPlaneXResolution]) == pytest.approx(100 * 25.4 / 12)
     assert ratio(exif[piexif.ExifIFD.FocalPlaneYResolution]) == pytest.approx(100 * 25.4 / 5.4)

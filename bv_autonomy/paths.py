@@ -7,17 +7,17 @@ side in one BuckeyeVertical folder, with bv_autonomy installed editable (pip ins
 from datetime import datetime
 from pathlib import Path
 
-REPO_DIR = Path(__file__).resolve().parent.parent       # BuckeyeVertical/bv_autonomy
-WORKSPACE_DIR = REPO_DIR.parent                          # BuckeyeVertical
+REPO_DIR = Path(__file__).resolve().parent.parent
+WORKSPACE_DIR = REPO_DIR.parent
 
-GCS_WEB_DIST = WORKSPACE_DIR / "bv_gcs" / "web" / "dist"  # built with npm run build in bv_gcs/web
+GCS_WEB_DIST = WORKSPACE_DIR / "bv_gcs" / "web" / "dist"
 
-MODELS_DIR = REPO_DIR / "models"                         # not in git; see the README
+MODELS_DIR = REPO_DIR / "models"
 LTDETR_WEIGHTS = MODELS_DIR / "ltdetr.pt"
 
-OUTPUT_DIR = REPO_DIR / "output"                         # not in git
+OUTPUT_DIR = REPO_DIR / "output"
 
-SUAS2026_STATE = REPO_DIR / "bv_autonomy" / "missions" / "suas2026" / "state" / "mission_state.json"  # not in git
+SUAS2026_STATE = REPO_DIR / "bv_autonomy" / "missions" / "suas2026" / "state" / "mission_state.json"
 
 
 def new_run_dir(name: str) -> Path:

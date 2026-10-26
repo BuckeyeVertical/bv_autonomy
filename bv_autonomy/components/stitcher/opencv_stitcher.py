@@ -29,7 +29,7 @@ class OpencvStitcher(Stitcher):
         max_width: int = 1500,
         max_images_per_row: int = 50,
         feature_count: int = 5000,
-        match_confidence: float = 0.7,     # Lowe's ratio threshold
+        match_confidence: float = 0.7,
         gap_width: int = 50,
     ):
         """
@@ -139,7 +139,6 @@ def _find_homography(img1, img2, feature_count, match_confidence):
         matches = cv2.BFMatcher(cv2.NORM_HAMMING).knnMatch(des1, des2, k=2)
     except cv2.error as exc:
         return False, f"feature matching failed: {exc}"
-    # Keep a match only if it's clearly better than the runner-up.
     pairs = (pair for pair in matches if len(pair) == 2)
     good = [m for m, n in pairs if m.distance < match_confidence * n.distance]
     if len(good) < 10:
@@ -152,7 +151,6 @@ def _find_homography(img1, img2, feature_count, match_confidence):
         return False, "homography estimation failed (RANSAC)"
     det = np.linalg.det(H[:2, :2])
     if det < 0.5 or det > 2.0:
-        # Aerial frames at one altitude should be close to a pure translation.
         log.warning("suspicious homography determinant %.3f (expected ~1.0)", det)
     return True, H
 
@@ -171,7 +169,6 @@ def _stitch_pair(img1, img2, H):
     translation = np.array([[1, 0, -x_min], [0, 1, -y_min], [0, 0, 1]], dtype=np.float64)
 
     canvas_w, canvas_h = x_max - x_min, y_max - y_min
-    # A bad homography mustn't allocate a giant canvas.
     max_canvas = max(w1, w2) * 6
     if canvas_w > max_canvas or canvas_h > max_canvas:
         log.warning("canvas too large (%dx%d), clamping to %d", canvas_w, canvas_h, max_canvas)

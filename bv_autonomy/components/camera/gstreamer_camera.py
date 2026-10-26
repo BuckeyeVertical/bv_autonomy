@@ -31,7 +31,7 @@ class GstreamerCamera(Camera):
         self._stopping = threading.Event()
         self._sequence = 0
         self._newest: Frame | None = None
-        self._new_frame = asyncio.Event()    # set while _newest hasn't been returned yet
+        self._new_frame = asyncio.Event()
 
     async def start(self) -> None:
         if self._thread is not None:
@@ -52,7 +52,6 @@ class GstreamerCamera(Camera):
 
     async def latest(self, timeout: float | None = None) -> Frame | None:
         if not self._new_frame.is_set():
-            # Checked first because wait_for with timeout=0 gives up even when the event is set.
             try:
                 await asyncio.wait_for(self._new_frame.wait(), timeout)
             except TimeoutError:
@@ -71,11 +70,9 @@ class GstreamerCamera(Camera):
                     self._loop.call_soon_threadsafe(self._on_frame, image, time.monotonic())
             finally:
                 capture.release()
-            # Unplugged, or the pipeline failed to start; try again shortly.
             self._stopping.wait(_REOPEN_DELAY_S)
 
     def _on_frame(self, image: np.ndarray, captured: float) -> None:
-        # Runs on the event loop, so the drone is only ever read from one thread.
         if self._stopping.is_set():
             return
         self._sequence += 1

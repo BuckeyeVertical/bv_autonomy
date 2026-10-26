@@ -1,7 +1,6 @@
 from bv_autonomy.missions.suas2026.suas2026 import LAP_ALT, Site
 from bv_autonomy.types import WaypointSequence
 
-# bv_bevy's suas_2026 world, from bv_core's sim_params.yaml. Official lap points are released at check-in.
 SIM = Site(
     laps=WaypointSequence.at_alt(LAP_ALT, [
         (36.21531017, -96.00994545),

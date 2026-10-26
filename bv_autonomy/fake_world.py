@@ -12,7 +12,7 @@ _EARTH_R = 6378137.0
 class Target:
     label: str
     position: Waypoint
-    size_m: float = 1.5          # width and length on the ground
+    size_m: float = 1.5
     color_bgr: tuple[int, int, int] = (40, 40, 220)
 
 

@@ -15,12 +15,12 @@ from mavsdk.plugins.telemetry import FlightMode
 from bv_autonomy.components.drone.base import Drone
 from bv_autonomy.types import Pose, Waypoint, WaypointSequence
 
-_EARTH_R = 6378137.0                # WGS-84 semi-major axis (meters)
-_ACCEPT_TIMEOUT_S = 5.0             # how long one attempt waits for PX4 to show a command took effect
+_EARTH_R = 6378137.0
+_ACCEPT_TIMEOUT_S = 5.0
 _RETRIES = 3
-_STALL_S = 60.0                     # a flight with no progress for this long is stuck
-_CLOSER_M = 3.0                     # beating the closest approach to the goal by this much counts as progress
-_MODE_GRACE_S = 2.0                 # PX4 may change mode a moment before reporting it finished
+_STALL_S = 60.0
+_CLOSER_M = 3.0
+_MODE_GRACE_S = 2.0
 
 
 class MavsdkDrone(Drone):
@@ -47,7 +47,6 @@ class MavsdkDrone(Drone):
         self._telemetry: TelemetryAsync | None = None
         self._tasks: list[asyncio.Task] = []
 
-        # Latest telemetry, filled in by the background tasks.
         self._position = None
         self._position_time = 0.0
         self._attitude = None
@@ -89,7 +88,6 @@ class MavsdkDrone(Drone):
             and self._health.is_global_position_ok and self._health.is_home_position_ok,
             timeout, "a position fix, home position and telemetry",
         )
-        # After a goto's one-waypoint mission, stay there rather than flying home.
         await self._mission.set_return_to_launch_after_mission(False)
 
     async def arm(self) -> None:
@@ -103,7 +101,6 @@ class MavsdkDrone(Drone):
         await self._command(
             self._action.takeoff, lambda: self._in_air or self._flight_mode == FlightMode.TAKEOFF, "take off"
         )
-        # PX4 levels off just under the takeoff altitude.
         await self._wait(lambda: self._position.relative_altitude_m >= alt - 0.5, alt / 0.5 + 30, f"reaching {alt} m")
 
     async def goto(self, point: Waypoint, speed: float | None = None, tolerance: float = 1.0) -> None:
@@ -147,8 +144,6 @@ class MavsdkDrone(Drone):
 
     async def hold(self) -> None:
         """Switch to Hold and finish once the drone has braked to a stop."""
-        # Holding also ends a goto's mission. (PX4 keeps flying a DO_REPOSITION after a switch to
-        # Hold, which is one reason goto uses missions.)
         await self._command(self._action.hold, lambda: self._flight_mode == FlightMode.HOLD, "hold")
         await self._wait(lambda: self._ground_speed() < 0.3, 15, "the drone to stop")
 
@@ -216,7 +211,7 @@ class MavsdkDrone(Drone):
                 return
             try:
                 await send()
-            except (ActionError, MissionError) as exc:      # a lost acknowledgment shows up as a timeout here
+            except (ActionError, MissionError) as exc:
                 error = exc
             with contextlib.suppress(TimeoutError):
                 await self._wait(accepted, _ACCEPT_TIMEOUT_S, name)
@@ -229,8 +224,6 @@ class MavsdkDrone(Drone):
             await self._mission.start_mission()
 
         def started():
-            # Mission mode alone isn't enough: PX4 stays in it after the previous mission finishes.
-            # The new mission is active until its last point is reached, unless the drone was already there.
             progress = self._mission_progress
             return self._flight_mode == FlightMode.MISSION and (
                 (progress is not None and progress.current < progress.total)
@@ -316,14 +309,13 @@ def _mission_item(point: Waypoint, speed: float | None, tolerance: float, fly_th
         loiter_time_s=float("nan"),
         camera_photo_interval_s=float("nan"),
         acceptance_radius_m=tolerance,
-        yaw_deg=float("nan"),                # PX4 faces the direction of travel
+        yaw_deg=float("nan"),
         camera_photo_distance_m=float("nan"),
         vehicle_action=MissionItem.VehicleAction.NONE,
     )
 
 
 def _distance_m(a: Waypoint, b: Waypoint) -> float:
-    # Flat-earth approximation, accurate over a competition field.
     dx = _EARTH_R * math.radians(b.lon - a.lon) * math.cos(math.radians(a.lat))
     dy = _EARTH_R * math.radians(b.lat - a.lat)
     return math.sqrt(dx * dx + dy * dy + (b.alt - a.alt) ** 2)

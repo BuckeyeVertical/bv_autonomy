@@ -22,8 +22,6 @@ from bv_autonomy.types import ApprovalRequest, Frame
 
 log = logging.getLogger(__name__)
 
-# report() events the dashboard knows, and the key each one's data travels under.
-# drone_fix is sent flat ({"type": "drone_fix", "latitude": ..., "longitude": ...}).
 _PAYLOAD_KEYS = {
     "mission_state": "data",
     "path_progress": "progress",
@@ -74,8 +72,8 @@ class BvGcs(Gcs):
         self._runner: web.AppRunner | None = None
         self._fix_task: asyncio.Task | None = None
         self._clients: set[web.WebSocketResponse] = set()
-        self._state: dict[str, object] = {}                    # latest report() data per event
-        self._frames: OrderedDict[str, bytes] = OrderedDict()   # detection id -> JPEG crop
+        self._state: dict[str, object] = {}
+        self._frames: OrderedDict[str, bytes] = OrderedDict()
         self._signals: dict[str, asyncio.Event] = {}
         self._pending: dict | None = None
         self._pending_since = 0.0
@@ -113,11 +111,10 @@ class BvGcs(Gcs):
         self._broadcast(_message(event, value))
 
     def preview(self, frame: Frame) -> None:
-        pass    # the /video stream isn't ported yet
+        pass
 
     async def ask(self, request: ApprovalRequest, timeout: float) -> bool | None:
         if self._answer is not None and not self._answer.done():
-            # Follow the newest request rather than leave the operator judging a stale one.
             log.warning("superseding pending %s with a new request", self._pending["detection_id"])
             self._answer.set_result(None)
 
@@ -159,12 +156,10 @@ class BvGcs(Gcs):
     def signal(self, name: str) -> asyncio.Event:
         return self._signals.setdefault(name, asyncio.Event())
 
-    # -- protocol ---------------------------------------------------------------
 
     def _pending_for_send(self) -> dict | None:
         if self._pending is None:
             return None
-        # How much of the timeout is spent, so a browser that joins late counts down correctly.
         return {**self._pending, "age_sec": time.monotonic() - self._pending_since}
 
     def _snapshot(self) -> dict:
@@ -216,7 +211,6 @@ class BvGcs(Gcs):
     def _on_request(self, name: str) -> dict:
         refusal = None
         if name == "end_laps":
-            # The signal stays set, so one pressed before laps would end them as soon as they start.
             if self._state.get("mission_state") != "lap":
                 refusal = "End laps is only available during laps"
             elif self.signal(name).is_set():
@@ -228,7 +222,6 @@ class BvGcs(Gcs):
         self.signal(name).set()
         return {"type": f"{name}_ack", "accepted": True, "message": f"{name.replace('_', ' ')} requested"}
 
-    # -- HTTP -------------------------------------------------------------------
 
     def _build_app(self) -> web.Application:
         app = web.Application()
@@ -243,7 +236,6 @@ class BvGcs(Gcs):
         return app
 
     async def _ws_handler(self, request: web.Request) -> web.WebSocketResponse:
-        # heartbeat makes aiohttp ping the client, so a silently dead link is noticed.
         ws = web.WebSocketResponse(heartbeat=20)
         await ws.prepare(request)
         self._clients.add(ws)
@@ -263,7 +255,7 @@ class BvGcs(Gcs):
                 elif kind in ("end_laps", "return_home"):
                     reply = self._on_request(kind)
                 elif kind == "preview":
-                    reply = {"type": "preview_state", "enabled": False}   # no video yet
+                    reply = {"type": "preview_state", "enabled": False}
                 else:
                     continue
                 await ws.send_str(json.dumps(reply))
@@ -276,7 +268,6 @@ class BvGcs(Gcs):
         crop = self._frames.get(request.match_info["detection_id"])
         if crop is None:
             raise web.HTTPNotFound(text="no cached frame for that detection")
-        # Crops never change for a detection id, so the browser may keep them.
         return web.Response(body=crop, content_type="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
 
     async def _health_handler(self, request: web.Request) -> web.Response:
@@ -290,7 +281,6 @@ class BvGcs(Gcs):
         })
 
     async def _index_handler(self, _request: web.Request) -> web.FileResponse:
-        # no-cache: revalidate index.html, so a rebuilt frontend's new bundle names are picked up.
         return web.FileResponse(self._dist / "index.html", headers={"Cache-Control": "no-cache"})
 
     async def _no_frontend_handler(self, _request: web.Request) -> web.Response:

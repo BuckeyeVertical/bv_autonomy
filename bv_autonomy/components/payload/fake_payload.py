@@ -11,7 +11,7 @@ class FakePayload(Payload):
 
     def __init__(self, slots: dict[str, int] | None = None, can_pick_up: bool = False, action_s: float = 0.1):
         self.held: dict[str, int] = dict(slots if slots is not None else {"bottle": 1, "beacon": 1})
-        self.log: list[tuple[float, str, str]] = []          # (time, "release" or "pick_up", slot)
+        self.log: list[tuple[float, str, str]] = []
         self._can_pick_up = can_pick_up
         self._action_s = action_s
 

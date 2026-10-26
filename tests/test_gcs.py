@@ -197,7 +197,6 @@ async def test_second_decision_in_same_event_loop_turn_is_refused(websocket, app
     pending = (await receive_type(ws, "pending"))["pending"]
     decision = {"detection_id": pending["detection_id"], "approved": True}
     try:
-        # Two clients can answer before ask() resumes to clear the pending request.
         assert gcs._on_decision(decision)["accepted"] is True
         assert gcs._on_decision(decision)["accepted"] is False
     finally:

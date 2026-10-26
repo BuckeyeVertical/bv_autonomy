@@ -5,7 +5,6 @@ __all__ = ["Gcs", "NullGcs", "BvGcs"]
 
 
 def __getattr__(name: str):
-    # Implementations load on first use, so importing Gcs doesn't need aiohttp.
     if name == "BvGcs":
         from .bv_gcs import BvGcs
 

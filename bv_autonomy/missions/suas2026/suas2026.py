@@ -4,52 +4,45 @@ from dataclasses import dataclass, field
 
 from bv_autonomy import paths
 from bv_autonomy.crop import annotated_crop
-from bv_autonomy.components.camera import BevyCamera
-from bv_autonomy.components.camera.rx0_camera import RX0_INTRINSICS
 from bv_autonomy.components.detector import LtdetrDetector
-from bv_autonomy.components.drone import MavsdkDrone
 from bv_autonomy.components.gcs import BvGcs
 from bv_autonomy.components.localizer import GimbalNadirLocalizer
-from bv_autonomy.components.payload import FakePayload
 from bv_autonomy.components.path_planner import SPathPlanner
+from bv_autonomy.components.platform import Platform
 from bv_autonomy.components.stitcher import OpencvStitcher
 from bv_autonomy.missions import base
 from bv_autonomy.missions.base import Mission
 from bv_autonomy.missions.suas2026.confirmation import ConfirmationWindow, Sighting, distance_m, wanted
-from bv_autonomy.types import ApprovalRequest, Detection, Waypoint, WaypointSequence
+from bv_autonomy.types import ApprovalRequest, Detection, Intrinsics, Waypoint, WaypointSequence
 
 log = logging.getLogger(__name__)
 
 MIN_BATTERY = 0.5
 
-# Altitudes, m above the ground
 LAP_ALT = 60.96
 SCAN_ALT = 60.96
 
-SCAN_OVERLAP = 0.35        # fraction of the camera's ground width shared by neighboring rows
+SCAN_OVERLAP = 0.35
 SCAN_TOLERANCE = 1.0
 DELIVER_TOLERANCE = 1.0
 
-# Speeds, m/s
 LAP_SPEED = 20.0
 TRANSIT_SPEED = 20.0
 SCAN_SPEED = 3.0
 DELIVER_SPEED = 3.0
 RETURN_SPEED = 20.0
 
-CLASS_IDS = {"person": 0, "tent": 1}               # the targets, with the ids the dashboard uses
+CLASS_IDS = {"person": 0, "tent": 1}
 PAYLOAD_SLOTS = {"person": "bottle", "tent": "beacon"}
 DETECTION_THRESHOLDS = {"person": 0.5, "tent": 0.7}
 
-# A target counts as found once seen in CONFIRM_HITS of the last CONFIRM_FRAMES frames, in about the same place.
 CONFIRM_HITS = 2
 CONFIRM_FRAMES = 5
 CONFIRM_RADIUS_M = 11.0
 
-# After holding over a target, look for it again this many times, this far apart.
 LOCATE_TRIES = 5
 LOCATE_RETRY_S = 1.0
-APPROVAL_TIMEOUT_S = 60.0          # no answer by then counts as approved, as in bv_core
+APPROVAL_TIMEOUT_S = 60.0
 
 LAP_COUNT = 2
 LAP_TOLERANCE = 40.0
@@ -71,14 +64,15 @@ class MissionState(base.MissionState):
 
     lap_route: WaypointSequence
     scan_route: WaypointSequence
-    targets: list[Sighting] = field(default_factory=list)      # approved, still to deliver to
+    targets: list[Sighting] = field(default_factory=list)
     delivered: list[Sighting] = field(default_factory=list)
-    rejected: list[Sighting] = field(default_factory=list)     # spots the operator said aren't targets
+    rejected: list[Sighting] = field(default_factory=list)
 
     @classmethod
-    def new(cls, site: Site) -> "MissionState":
-        
-        planner = SPathPlanner(RX0_INTRINSICS, SCAN_ALT, SCAN_OVERLAP)
+    def new(cls, site: Site, intrinsics: Intrinsics) -> "MissionState":
+        """A fresh flight, with the scan planned for a camera with these intrinsics."""
+
+        planner = SPathPlanner(intrinsics, SCAN_ALT, SCAN_OVERLAP)
         return cls(
             lap_route=WaypointSequence(site.laps * LAP_COUNT + [site.laps[0]]),
             scan_route=planner.plan(site.scan_area),
@@ -98,15 +92,15 @@ class MissionState(base.MissionState):
 class Suas2026(Mission):
     """SUAS 2026: fly laps, then scan the search area, delivering a payload to each target found."""
 
-    def __init__(self, site: Site, state: MissionState):
+    def __init__(self, site: Site, state: MissionState, platform: Platform):
         self.site = site
         self.state = state
-        self.drone = MavsdkDrone()
-        self.camera = BevyCamera(self.drone)
+        self.drone = platform.drone
+        self.camera = platform.camera
+        self.payload = platform.payload
         self.detector = LtdetrDetector(thresholds=DETECTION_THRESHOLDS)
         self.localizer = GimbalNadirLocalizer()
         self.stitcher = OpencvStitcher(overlap=SCAN_OVERLAP)
-        self.payload = FakePayload()
         self.gcs = BvGcs(drone=self.drone, class_ids=CLASS_IDS)
         self.window = ConfirmationWindow(CLASS_IDS, CONFIRM_HITS, CONFIRM_FRAMES, CONFIRM_RADIUS_M)
 
@@ -177,7 +171,7 @@ class Suas2026(Mission):
 
     async def scan(self, route: WaypointSequence, transit_speed: float, speed: float, tolerance: float):
         """Fly what's left of the scan route, stopping to check each target found and deliver to it if approved."""
-        await self.deliver_approved()        # one approved before a restart
+        await self.deliver_approved()
         while route:
             target = await self.scan_rows(route, transit_speed, speed, tolerance)
             if target is None:
@@ -242,7 +236,7 @@ class Suas2026(Mission):
         try:
             crop = annotated_crop(detection)
         except Exception:
-            log.exception("could not crop the %s; asking without an image", target.label)   # never lose a target to this
+            log.exception("could not crop the %s; asking without an image", target.label)
             crop = b""
         request = ApprovalRequest(target.label, position, detection.confidence, crop, self.drone.position())
         answer = await self.gcs.ask(request, APPROVAL_TIMEOUT_S)
@@ -254,7 +248,6 @@ class Suas2026(Mission):
                      target.label, position.lat, position.lon)
             self.state.targets.append(Sighting(target.label, position))
             if self.state.scan_route:
-                # Come back here after delivering, to carry on the row where it stopped.
                 here = self.drone.position()
                 self.state.scan_route = WaypointSequence([Waypoint(here.lat, here.lon, SCAN_ALT), *self.state.scan_route])
         self.state.save()

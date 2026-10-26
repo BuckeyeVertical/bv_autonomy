@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from bv_autonomy.components.camera.rx0_camera import RX0_INTRINSICS
+from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
 from bv_autonomy.components.path_planner import SPathPlanner
 from bv_autonomy.missions.suas2026 import MissionState
 from bv_autonomy.missions.suas2026.suas2026 import (
@@ -15,12 +15,12 @@ from bv_autonomy.types import Waypoint, WaypointSequence
 
 def scan_only(site):
     """A fresh state with laps already done, for tests about the scan alone."""
-    return MissionState(lap_route=WaypointSequence(), scan_route=MissionState.new(site).scan_route)
+    return MissionState(lap_route=WaypointSequence(), scan_route=MissionState.new(site, BEVY_INTRINSICS).scan_route)
 
 
 def test_new_state_plans_scan_once_at_scan_altitude(site):
-    route = MissionState.new(site).scan_route
-    assert route == SPathPlanner(RX0_INTRINSICS, SCAN_ALT, SCAN_OVERLAP).plan(site.scan_area)
+    route = MissionState.new(site, BEVY_INTRINSICS).scan_route
+    assert route == SPathPlanner(BEVY_INTRINSICS, SCAN_ALT, SCAN_OVERLAP).plan(site.scan_area)
     assert len(route) >= 4
     assert all(point.alt == SCAN_ALT for point in route)
 
@@ -64,7 +64,7 @@ async def test_empty_scan_route_skips_transit_and_reports(make_mission, drone, g
 
 
 async def test_watch_shows_maps_and_confirms_targets(make_mission, drone, gcs, targets, site):
-    target = Waypoint(site.laps[0].lat + 0.00003, site.laps[0].lon, 0.0)   # ~3 m north of the drone
+    target = Waypoint(site.laps[0].lat + 0.00003, site.laps[0].lon, 0.0)
     targets.append(Target("person", target))
     mission = make_mission()
     await drone.arm()
@@ -94,8 +94,8 @@ async def test_scan_watches_only_while_flying_rows(make_mission, drone, site, mo
 
     monkeypatch.setattr(mission, "watch", watch)
     await asyncio.wait_for(mission.start(), 2)
-    assert started == [1]                 # once, after the transit goto
-    assert stopped == [len(route)]        # stopped once every row point was reached
+    assert started == [1]
+    assert stopped == [len(route)]
 
 
 async def test_watch_failure_stops_scan_and_holds(make_mission, drone, site, monkeypatch):

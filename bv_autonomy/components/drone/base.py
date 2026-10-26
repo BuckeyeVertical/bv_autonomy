@@ -52,7 +52,6 @@ class Drone(ABC):
     async def return_home(self) -> None:
         """Fly back to the home position and land there."""
 
-    # Getters read the latest telemetry, kept up to date in the background. None of them wait.
 
     @abstractmethod
     def pose(self) -> Pose:

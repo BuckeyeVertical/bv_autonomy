@@ -43,7 +43,6 @@ class FakeStitcher(Stitcher):
             grid[r * h:(r + 1) * h, c * w:(c + 1) * w] = thumb[:h, :w]
         self._output_dir.mkdir(parents=True, exist_ok=True)
         path = self._output_dir / "fake_mosaic.ppm"
-        # PPM needs no image library: a short header, then raw RGB.
         with open(path, "wb") as f:
             f.write(f"P6 {grid.shape[1]} {grid.shape[0]} 255\n".encode())
             f.write(grid[:, :, ::-1].tobytes())

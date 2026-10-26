@@ -11,13 +11,11 @@ import piexif
 
 MM_PER_INCH = 25.4
 
-# EXIF stores every real number as a pair of unsigned 32-bit integers, so each quantity
-# gets the finest denominator its range can afford without overflowing.
-_FOCAL_SCALE = 1000000          # mm, to a nanometre
-_RESOLUTION_SCALE = 10000       # pixels per inch, to a ten-thousandth
-_METRE_SCALE = 1000             # metres, to a millimetre
-_DEGREE_SCALE = 1000            # degrees, to a thousandth
-_ARCSECOND_SCALE = 10000        # arcseconds, to ~3 mm of ground
+_FOCAL_SCALE = 1000000
+_RESOLUTION_SCALE = 10000
+_METRE_SCALE = 1000
+_DEGREE_SCALE = 1000
+_ARCSECOND_SCALE = 10000
 
 
 @dataclass(frozen=True)
@@ -61,7 +59,7 @@ class CameraExif:
                 piexif.ExifIFD.FocalLength: _rational(self.focal_length_mm, _FOCAL_SCALE),
                 piexif.ExifIFD.FocalPlaneXResolution: _rational(x_res, _RESOLUTION_SCALE),
                 piexif.ExifIFD.FocalPlaneYResolution: _rational(y_res, _RESOLUTION_SCALE),
-                piexif.ExifIFD.FocalPlaneResolutionUnit: 2,   # inches, like the resolutions
+                piexif.ExifIFD.FocalPlaneResolutionUnit: 2,
             },
         }
 
@@ -72,13 +70,11 @@ class FrameGeotag:
 
     latitude: float
     longitude: float
-    altitude_m: float | None        # None leaves the altitude tag out
+    altitude_m: float | None
     captured_at: datetime
     heading_deg: float | None = None
 
     def exif_dict(self) -> dict:
-        # Camera pitch and roll have no standard EXIF tag, and for a gimbal holding the camera
-        # straight down they are constants, so they're left out.
         gps = {
             piexif.GPSIFD.GPSLatitude: _dms_rationals(self.latitude),
             piexif.GPSIFD.GPSLatitudeRef: b"N" if self.latitude >= 0.0 else b"S",
@@ -89,7 +85,6 @@ class FrameGeotag:
             gps[piexif.GPSIFD.GPSAltitude] = _rational(abs(self.altitude_m), _METRE_SCALE)
             gps[piexif.GPSIFD.GPSAltitudeRef] = 0 if self.altitude_m >= 0.0 else 1
         if self.heading_deg is not None:
-            # 'T': against true north, which is what the drone's yaw is.
             gps[piexif.GPSIFD.GPSImgDirection] = _rational(self.heading_deg, _DEGREE_SCALE)
             gps[piexif.GPSIFD.GPSImgDirectionRef] = b"T"
         return {
@@ -125,7 +120,6 @@ def _dms_rationals(decimal_degrees: float) -> list[tuple[int, int]]:
     minutes_total = (remaining - degrees) * 60.0
     minutes = int(minutes_total)
     seconds = (minutes_total - minutes) * 60.0
-    # Round the seconds first, then carry, so 59.99996 s can't encode as an out-of-range 60 s.
     ticks = int(round(seconds * _ARCSECOND_SCALE))
     if ticks >= 60 * _ARCSECOND_SCALE:
         ticks -= 60 * _ARCSECOND_SCALE

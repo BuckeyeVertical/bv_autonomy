@@ -27,7 +27,6 @@ class TelemetryClock:
 @pytest.fixture
 def clock(monkeypatch):
     clock = TelemetryClock()
-    # Patch only this module: real event-loop clocks and timeout guards keep working.
     monkeypatch.setattr(md, "time", SimpleNamespace(monotonic=lambda: clock.now))
     monkeypatch.setattr(md, "asyncio", SimpleNamespace(sleep=clock.sleep, create_task=asyncio.create_task))
     monkeypatch.setattr(md, "_STALL_S", 1.0)

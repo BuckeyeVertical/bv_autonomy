@@ -43,7 +43,6 @@ class ConfirmationWindow:
         """Add one frame's sightings. Returns the target, at its sightings' centroid, once a label confirms."""
         self._frames.append(sightings)
         for label in self._class_ids:
-            # The first sighting of the label in each frame that has one.
             seen = [next(s for s in frame if s.label == label) for frame in self._frames
                     if any(s.label == label for s in frame)]
             if len(seen) < self._hits:

@@ -6,8 +6,6 @@ from bv_autonomy.components.camera.gstreamer_camera import GstreamerCamera
 from bv_autonomy.components.drone import Drone
 from bv_autonomy.types import Intrinsics
 
-# Calibrated at this resolution (bv_core config/filtering_params.yaml). Changing it means
-# recalibrating, or scaling fx, fy, cx and cy to match.
 RX0_INTRINSICS = Intrinsics(
     width=3840,
     height=2160,
@@ -20,7 +18,6 @@ RX0_INTRINSICS = Intrinsics(
 
 
 def rx0_pipeline(device: str = "/dev/video0", fps: int = 30) -> str:
-    # Same flags as bv_core's working config (config/vision_params.yaml, gst_pipeline).
     return (
         f"v4l2src device={device}"
         f" ! image/jpeg,width={RX0_INTRINSICS.width},height={RX0_INTRINSICS.height},framerate={fps}/1"

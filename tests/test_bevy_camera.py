@@ -29,7 +29,6 @@ async def stream_camera(drone, monkeypatch):
     async def connect(*args, **kwargs):
         return await connections.get()
 
-    # StreamReader exercises real framing and EOF handling without opening a simulator socket.
     monkeypatch.setattr(bevy.asyncio, "open_connection", connect)
     monkeypatch.setattr(bevy, "_RECONNECT_DELAY_S", 0)
     camera = bevy.BevyCamera(drone)

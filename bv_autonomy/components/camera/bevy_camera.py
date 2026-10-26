@@ -29,8 +29,8 @@ class BevyCamera(Camera):
         self._host = host
         self._port = port
         self._task: asyncio.Task | None = None
-        self._newest = None                  # (jpeg, header, pose, time) of the newest frame
-        self._new_frame = asyncio.Event()    # set while _newest hasn't been returned yet
+        self._newest = None
+        self._new_frame = asyncio.Event()
 
     async def start(self) -> None:
         if self._task is None:
@@ -48,7 +48,6 @@ class BevyCamera(Camera):
 
     async def latest(self, timeout: float | None = None) -> Frame | None:
         if not self._new_frame.is_set():
-            # Checked first because wait_for with timeout=0 gives up even when the event is set.
             try:
                 await asyncio.wait_for(self._new_frame.wait(), timeout)
             except TimeoutError:
@@ -81,7 +80,6 @@ class BevyCamera(Camera):
                     self._newest = (jpeg, header, self._drone.pose(), time.monotonic())
                     self._new_frame.set()
             except (OSError, ValueError, asyncio.IncompleteReadError, asyncio.LimitOverrunError):
-                # json.JSONDecodeError is a ValueError, and an empty line at EOF fails to parse.
                 pass
             finally:
                 writer.close()
@@ -94,7 +92,6 @@ def _check_header(header: dict) -> None:
     if header.get("encoding") != "jpeg":
         raise ValueError("unsupported camera frame encoding")
     if header.get("camera_model") != "pinhole":
-        # Legacy v1 frames may leave out the intrinsics; we need them to localize.
         raise ValueError("camera frame has no pinhole intrinsics")
     if not 0 < header.get("data_length", 0) <= _MAX_FRAME_BYTES:
         raise ValueError("invalid camera frame length")
@@ -108,7 +105,6 @@ def _decode(jpeg: bytes, header: dict) -> np.ndarray:
 
 
 def _intrinsics(header: dict) -> Intrinsics:
-    # Bevy renders an ideal pinhole camera, so there's no lens distortion.
     return Intrinsics(
         width=header["width"], height=header["height"],
         fx=header["fx"], fy=header["fy"], cx=header["cx"], cy=header["cy"], dist=np.zeros(5),

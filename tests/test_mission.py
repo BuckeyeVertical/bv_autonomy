@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
+from bv_autonomy.components.platform import FakePlatform
 from bv_autonomy.missions.suas2026 import MissionState
 from bv_autonomy.missions.suas2026.suas2026 import MIN_BATTERY
 from bv_autonomy.types import WaypointSequence
@@ -10,7 +12,7 @@ from bv_autonomy.types import WaypointSequence
 
 def laps_only(site):
     """A fresh state with no scan, for tests about laps alone."""
-    return MissionState(lap_route=MissionState.new(site).lap_route, scan_route=WaypointSequence())
+    return MissionState(lap_route=MissionState.new(site, BEVY_INTRINSICS).lap_route, scan_route=WaypointSequence())
 
 
 async def test_fresh_run_flies_full_route_and_reports_progress(make_mission, drone, gcs):
@@ -56,7 +58,7 @@ async def test_cancel_and_resume_in_air_has_no_repeats_or_gaps(make_mission, dro
 
 
 async def test_ground_resume_takes_off_and_flies_only_remaining_points(make_mission, drone, site):
-    remaining = WaypointSequence(MissionState.new(site).lap_route[3:])
+    remaining = WaypointSequence(MissionState.new(site, BEVY_INTRINSICS).lap_route[3:])
     MissionState(lap_route=remaining, scan_route=WaypointSequence()).save()
     mission = make_mission(MissionState.load())
     await asyncio.wait_for(mission.start(), 2)
@@ -132,7 +134,7 @@ async def test_error_mid_lap_holds_reports_abort_and_reraises(make_mission, dron
     assert raised.value is error
     assert drone.holds == 1
     assert gcs.reports[-1] == ("mission_state", {"state": "aborted"})
-    assert MissionState.load().lap_route == MissionState.new(mission.site).lap_route[1:]
+    assert MissionState.load().lap_route == MissionState.new(mission.site, BEVY_INTRINSICS).lap_route[1:]
 
 
 async def test_cancellation_awaits_lap_child_tasks(make_mission, drone, gcs):
@@ -206,16 +208,17 @@ async def test_connect_checks_preflight_after_drone_and_gcs_start(make_mission, 
 
 
 @pytest.mark.parametrize("resume", [False, True])
-async def test_main_saves_selected_state_before_connect(site, monkeypatch, resume):
+async def test_main_saves_selected_state_before_connect(site, drone, monkeypatch, resume):
     from bv_autonomy.missions.suas2026 import __main__ as entry
 
     old = MissionState(lap_route=WaypointSequence(site.laps[1:]), scan_route=WaypointSequence())
     old.save()
-    expected = old if resume else MissionState.new(site)
+    expected = old if resume else MissionState.new(site, BEVY_INTRINSICS)
     calls = []
 
     class StandInMission:
-        def __init__(self, selected_site, state):
+        def __init__(self, selected_site, state, platform):
+            assert platform.drone is drone
             assert selected_site is site
             assert state == expected
             assert MissionState.load() == expected
@@ -230,6 +233,7 @@ async def test_main_saves_selected_state_before_connect(site, monkeypatch, resum
             calls.append("started")
 
     monkeypatch.setattr(entry, "SIM", site)
+    monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
     assert calls == ["constructed", "connected", "started"]

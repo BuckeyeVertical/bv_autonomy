@@ -23,7 +23,7 @@ class LtdetrDetector(Detector):
         model_path: str | Path = paths.LTDETR_WEIGHTS,
         thresholds: dict[str, float] | None = None,
         default_threshold: float = 0.5,
-        device: str | None = None,       # "cuda", "mps" or "cpu"; None lets LightlyTrain pick
+        device: str | None = None,
     ):
         self._model_path = Path(model_path).expanduser()
         self._thresholds = dict(thresholds or {})
@@ -31,7 +31,7 @@ class LtdetrDetector(Detector):
         self._device = device
         self._model = None
         self._labels: dict[int, str] = {}
-        self._lock = asyncio.Lock()      # one inference at a time
+        self._lock = asyncio.Lock()
 
         for label, value in [("default", default_threshold), *self._thresholds.items()]:
             if not 0.0 <= value <= 1.0:
@@ -58,7 +58,6 @@ class LtdetrDetector(Detector):
         async with self._lock:
             if self._model is None:
                 raise RuntimeError("LtdetrDetector.detect() called before start()")
-            # Ask the model for everything above the lowest threshold, then apply each label's own.
             lowest = min([self._default_threshold, *self._thresholds.values()])
             labels, boxes, scores = await asyncio.to_thread(_predict, self._model, frame.image, lowest)
 
@@ -77,7 +76,7 @@ class LtdetrDetector(Detector):
 
 
 def _load(model_path: Path, device: str | None):
-    import lightly_train   # heavy (pulls in torch), so only loaded when a detector starts
+    import lightly_train
 
     return lightly_train.load_model(str(model_path), device=device)
 
@@ -101,7 +100,6 @@ def _to_numpy(value, dtype) -> np.ndarray:
 
 
 def _free_gpu_memory() -> None:
-    # Dropping the model isn't enough on the Orin: torch keeps the memory cached until told.
     gc.collect()
     try:
         import torch

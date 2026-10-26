@@ -27,7 +27,6 @@ def annotated_crop(detection: Detection, margin: float = 2.5, min_px: int = 320,
         size = (max(1, round(crop.shape[1] * scale)), max(1, round(crop.shape[0] * scale)))
         crop = cv2.resize(crop, size, interpolation=cv2.INTER_AREA)
         box = [v * scale for v in box]
-    # Drawn after the downscale, so the lines stay as thick as the operator sees them.
     _annotate(crop, box, f"{detection.label} {detection.confidence:.2f}")
 
     ok, jpeg = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, quality])
@@ -52,10 +51,8 @@ def _annotate(image, box, label: str) -> None:
     cv2.rectangle(image, (x1, y1), (x2, y2), _BOX_BGR, 2)
 
     (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-    # Above the box, or below it when the box touches the top.
     bottom = y1 if y1 - text_h - 8 >= 0 else min(h, y2 + text_h + 8)
     top = max(0, bottom - text_h - 8)
-    # Slid left rather than clipped at the right edge, which would cut the text off.
     left = max(0, min(x1, w - text_w - 8))
     cv2.rectangle(image, (left, top), (left + text_w + 8, bottom), _BOX_BGR, -1)
     cv2.putText(image, label, (left + 4, bottom - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, _TEXT_BGR, 2, cv2.LINE_AA)

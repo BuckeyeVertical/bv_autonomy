@@ -62,7 +62,6 @@ async def run_odm(project: Path, orthophoto_resolution_cm: float = 2.2, image: s
     project = Path(project).resolve()
     if shutil.which("docker") is None:
         raise RuntimeError("Docker is needed to run ODM but wasn't found")
-    # ODM treats /datasets/<name> as the project, so the project is mounted as "code".
     process = await asyncio.create_subprocess_exec(
         "docker", "run", "--rm",
         "-v", f"{project}:/datasets/code",
