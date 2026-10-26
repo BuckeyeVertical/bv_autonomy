@@ -6,8 +6,11 @@ import pytest
 import pytest_asyncio
 
 from bv_autonomy import paths
+from bv_autonomy.components.camera import FakeCamera
+from bv_autonomy.components.detector import FakeDetector
 from bv_autonomy.components.drone import FakeDrone
 from bv_autonomy.components.gcs import NullGcs
+from bv_autonomy.components.stitcher import FakeStitcher
 from bv_autonomy.missions import base
 from bv_autonomy.missions.suas2026 import MissionState, Site, Suas2026
 from bv_autonomy.types import Frame, Intrinsics, Pose, Waypoint, WaypointSequence
@@ -17,11 +20,21 @@ class RecordingGcs(NullGcs):
     def __init__(self):
         super().__init__()
         self.reports = []
+        self.previews = []
+        self.requests = []
+        self.answer = None          # what ask() answers: True, False, or None for no answer
         self.changed = asyncio.Event()
 
     def report(self, event, data):
         self.reports.append((event, data.copy()))
         self.changed.set()
+
+    def preview(self, frame):
+        self.previews.append(frame)
+
+    async def ask(self, request, timeout):
+        self.requests.append((request, timeout))
+        return self.answer
 
     @property
     def progress(self):
@@ -41,6 +54,8 @@ class RecordingDrone(FakeDrone):
         self.holds = 0
         self.reached = []
         self.flight_tasks = []
+        self.gotos = []
+        self.flights = []
 
     async def takeoff(self, alt):
         self.takeoffs.append(alt)
@@ -50,8 +65,13 @@ class RecordingDrone(FakeDrone):
         self.holds += 1
         await super().hold()
 
+    async def goto(self, point, speed=None, tolerance=1.0):
+        self.gotos.append((point, speed, tolerance))
+        await super().goto(point, speed, tolerance)
+
     async def fly_mission(self, route, speed=None, tolerance=1.0, on_progress=None):
         self.flight_tasks.append(asyncio.current_task())
+        self.flights.append((speed, tolerance))
 
         def record(reached):
             if reached:
@@ -93,7 +113,12 @@ def site():
             Waypoint(36.001, -96.0, 10),
             Waypoint(36.001, -95.999, 10),
         ]),
-        scan_area=WaypointSequence(),
+        scan_area=WaypointSequence.at_alt(0.0, [
+            (36.0002, -96.0020),
+            (36.0002, -96.0002),
+            (36.0012, -96.0002),
+            (36.0012, -96.0020),
+        ]),
     )
 
 
@@ -110,12 +135,22 @@ async def drone(site):
 
 
 @pytest.fixture
-def make_mission(site, drone, gcs, monkeypatch):
-    # Replace constructors before __init__, so no real GCS or MAVSDK connection is possible.
+def targets():
+    """What the fake camera and detector see; empty unless a test adds some."""
+    return []
+
+
+@pytest.fixture
+def make_mission(site, drone, gcs, targets, tmp_path, monkeypatch):
+    # Replace constructors before __init__, so no real GCS, MAVSDK, camera or model is used.
     from bv_autonomy.missions.suas2026 import suas2026
 
+    small = Intrinsics(width=100, height=100, fx=100, fy=100, cx=50, cy=50, dist=np.zeros(5))
     monkeypatch.setattr(suas2026, "MavsdkDrone", lambda: drone)
     monkeypatch.setattr(suas2026, "BvGcs", lambda **kwargs: gcs)
+    monkeypatch.setattr(suas2026, "BevyCamera", lambda drone: FakeCamera(drone, targets, small, fps=50))
+    monkeypatch.setattr(suas2026, "LtdetrDetector", lambda **kwargs: FakeDetector(targets))
+    monkeypatch.setattr(suas2026, "OpencvStitcher", lambda **kwargs: FakeStitcher(tmp_path / "map", keep_every=1))
 
     def make(state=None):
         return Suas2026(site, state if state is not None else MissionState.new(site))
@@ -129,6 +164,6 @@ def frame():
         image=np.zeros((100, 100, 3), dtype=np.uint8),
         time=12.0,
         pose=Pose(Waypoint(0, 0, 20), 0, 0, 0, 12.0),
-        intrinsics=Intrinsics(100, 100, 50, 50, np.zeros(5)),
+        intrinsics=Intrinsics(width=100, height=100, fx=100, fy=100, cx=50, cy=50, dist=np.zeros(5)),
         sequence=1,
     )

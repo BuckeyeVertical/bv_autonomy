@@ -88,7 +88,7 @@ async def test_fake_camera_produces_fresh_frames_and_stamps_pose(drone, frame):
     await drone.arm()
     await asyncio.wait_for(drone.takeoff(20), 2)
     camera = FakeCamera(drone, [Target("person", drone.home(), color_bgr=(1, 2, 3))],
-                        width=100, height=100, intrinsics=frame.intrinsics, fps=200)
+                        intrinsics=frame.intrinsics, fps=200)
     await camera.start()
     try:
         first = await camera.latest(timeout=1)
@@ -103,7 +103,7 @@ async def test_fake_camera_produces_fresh_frames_and_stamps_pose(drone, frame):
 
 
 async def test_fake_camera_timeout_and_stop(frame, drone):
-    camera = FakeCamera(drone, width=100, height=100, intrinsics=frame.intrinsics)
+    camera = FakeCamera(drone, intrinsics=frame.intrinsics)
     assert await camera.latest(timeout=0.001) is None
     await camera.start()
     await camera.latest(timeout=1)

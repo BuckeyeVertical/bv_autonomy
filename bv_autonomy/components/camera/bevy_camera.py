@@ -110,5 +110,6 @@ def _decode(jpeg: bytes, header: dict) -> np.ndarray:
 def _intrinsics(header: dict) -> Intrinsics:
     # Bevy renders an ideal pinhole camera, so there's no lens distortion.
     return Intrinsics(
-        fx=header["fx"], fy=header["fy"], cx=header["cx"], cy=header["cy"], dist=np.zeros(5)
+        width=header["width"], height=header["height"],
+        fx=header["fx"], fy=header["fy"], cx=header["cx"], cy=header["cy"], dist=np.zeros(5),
     )

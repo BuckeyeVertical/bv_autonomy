@@ -3,6 +3,7 @@ import json
 import pytest
 
 from bv_autonomy.missions.suas2026 import MissionState
+from bv_autonomy.missions.suas2026.confirmation import Sighting
 from bv_autonomy.missions.suas2026.suas2026 import LAP_COUNT
 from bv_autonomy.types import Waypoint, WaypointSequence
 
@@ -15,6 +16,9 @@ def test_new_state_repeats_laps_and_closes_route(site):
 
 def test_save_load_preserves_waypoints_and_order(site):
     state = MissionState.new(site)
+    state.targets.append(Sighting("tent", Waypoint(36.1, -96.1, 0.0)))
+    state.rejected.append(Sighting("person", Waypoint(36.2, -96.2, 0.0)))
+    state.delivered.append(Sighting("person", Waypoint(36.3, -96.3, 0.0)))
     state.save()
     restored = MissionState.load()
     assert restored == state
@@ -55,5 +59,5 @@ def test_failed_atomic_replace_keeps_previous_state(site, monkeypatch):
 
     monkeypatch.setattr(base.os, "replace", fail_replace)
     with pytest.raises(OSError, match="disk failure"):
-        MissionState(WaypointSequence()).save()
+        MissionState(lap_route=WaypointSequence(), scan_route=WaypointSequence()).save()
     assert MissionState.load() == old

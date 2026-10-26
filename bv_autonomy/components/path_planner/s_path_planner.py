@@ -13,13 +13,12 @@ class SPathPlanner(PathPlanner):
     """Flies rows across the area, alternating direction, spaced so the camera's views overlap.
 
     Rows run along the area's longer side by default. Row spacing comes from how wide the
-    camera sees on the ground at the scan altitude: image_width * altitude / fx, for a
+    camera sees on the ground at the scan altitude: width * altitude / fx, for a
     downward camera with the image width across the direction of flight.
     """
 
     def __init__(
         self,
-        image_width: int,
         intrinsics: Intrinsics,
         altitude: float,
         overlap: float,
@@ -28,8 +27,7 @@ class SPathPlanner(PathPlanner):
     ):
         """
         Args:
-            image_width: Image width in pixels.
-            intrinsics: Camera intrinsics; only fx is used.
+            intrinsics: Camera calibration; its width and fx set the ground footprint.
             altitude: Scan height above the ground, in meters.
             overlap: Fraction of the camera's ground width shared by neighboring rows, from 0 to 1.
             sweep: "long" runs rows along the longer side of the area, "short" along the shorter one.
@@ -37,7 +35,7 @@ class SPathPlanner(PathPlanner):
         """
         if altitude <= 0:
             raise ValueError("altitude must be positive")
-        if image_width <= 0 or intrinsics.fx <= 0:
+        if intrinsics.width <= 0 or intrinsics.fx <= 0:
             raise ValueError("image width and focal length must be positive")
         if not 0.0 <= overlap < 1.0:
             raise ValueError("overlap must be in [0, 1)")
@@ -46,7 +44,7 @@ class SPathPlanner(PathPlanner):
         if start not in (None, "top", "bottom"):
             raise ValueError("start must be 'top' or 'bottom'")
 
-        self._footprint_m = image_width * altitude / intrinsics.fx
+        self._footprint_m = intrinsics.width * altitude / intrinsics.fx
         self._overlap = overlap
         self._altitude = altitude
         self._sweep = sweep

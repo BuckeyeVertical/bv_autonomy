@@ -8,14 +8,19 @@ from bv_autonomy.missions.suas2026.suas2026 import MIN_BATTERY
 from bv_autonomy.types import WaypointSequence
 
 
+def laps_only(site):
+    """A fresh state with no scan, for tests about laps alone."""
+    return MissionState(lap_route=MissionState.new(site).lap_route, scan_route=WaypointSequence())
+
+
 async def test_fresh_run_flies_full_route_and_reports_progress(make_mission, drone, gcs):
     mission = make_mission()
     expected = list(mission.state.lap_route)
+    scan = list(mission.state.scan_route)
     await asyncio.wait_for(mission.start(), 2)
     assert drone.takeoffs == [expected[0].alt]
-    assert drone.reached == expected
-    assert mission.state.lap_route == []
-    assert MissionState.load().lap_route == []
+    assert drone.reached == expected + scan
+    assert mission.state == MissionState.load() == MissionState(lap_route=[], scan_route=[])
     expected_progress = []
     for i in range(len(expected) + 1):
         expected_progress.append({
@@ -24,12 +29,12 @@ async def test_fresh_run_flies_full_route_and_reports_progress(make_mission, dro
             "segment_start": [expected[i - 1].lat, expected[i - 1].lon] if i else None,
             "segment_end": [expected[i].lat, expected[i].lon] if i < len(expected) else None,
         })
-    assert gcs.progress == expected_progress
+    assert [p for p in gcs.progress if p["phase"] == "lap"] == expected_progress
 
 
 async def test_cancel_and_resume_in_air_has_no_repeats_or_gaps(make_mission, drone, gcs):
     mission = make_mission()
-    full = list(mission.state.lap_route)
+    laps, scan = list(mission.state.lap_route), list(mission.state.scan_route)
     task = asyncio.create_task(mission.start())
     await gcs.wait_reached(2)
     task.cancel()
@@ -39,19 +44,20 @@ async def test_cancel_and_resume_in_air_has_no_repeats_or_gaps(make_mission, dro
     assert drone._target is None
     assert gcs.reports[-1] == ("mission_state", {"state": "aborted"})
     saved = MissionState.load()
-    assert saved.lap_route == full[len(drone.reached):]
+    assert saved.lap_route == laps[len(drone.reached):]
+    assert saved.scan_route == scan
     assert drone.in_air()
     resumed = make_mission(saved)
     resumed.preflight_checks(resuming=True)
     await asyncio.wait_for(resumed.start(), 2)
-    assert drone.takeoffs == [full[0].alt]
-    assert drone.reached == full
-    assert MissionState.load().lap_route == []
+    assert drone.takeoffs == [laps[0].alt]
+    assert drone.reached == laps + scan
+    assert MissionState.load() == MissionState(lap_route=[], scan_route=[])
 
 
 async def test_ground_resume_takes_off_and_flies_only_remaining_points(make_mission, drone, site):
     remaining = WaypointSequence(MissionState.new(site).lap_route[3:])
-    MissionState(remaining).save()
+    MissionState(lap_route=remaining, scan_route=WaypointSequence()).save()
     mission = make_mission(MissionState.load())
     await asyncio.wait_for(mission.start(), 2)
     assert drone.takeoffs == [site.laps[0].alt]
@@ -60,14 +66,14 @@ async def test_ground_resume_takes_off_and_flies_only_remaining_points(make_miss
 
 
 async def test_empty_laps_skip_flight_and_reports(make_mission, gcs, drone):
-    mission = make_mission(MissionState(WaypointSequence()))
+    mission = make_mission(MissionState(lap_route=WaypointSequence(), scan_route=WaypointSequence()))
     await mission.laps(mission.state.lap_route, 20, 1)
     assert gcs.reports == []
     assert drone.flight_tasks == []
 
 
-async def test_state_is_saved_after_each_reached_point(make_mission, drone, gcs, monkeypatch):
-    mission = make_mission()
+async def test_state_is_saved_after_each_reached_point(make_mission, drone, gcs, site, monkeypatch):
+    mission = make_mission(laps_only(site))
     full = list(mission.state.lap_route)
     save = MissionState.save
     snapshots = []
@@ -87,8 +93,8 @@ async def test_state_is_saved_after_each_reached_point(make_mission, drone, gcs,
     assert snapshots == [full[i:] for i in range(len(full) + 1)]
 
 
-async def test_end_laps_holds_and_saves_empty_route(make_mission, drone, gcs):
-    mission = make_mission()
+async def test_end_laps_holds_and_saves_empty_route(make_mission, drone, gcs, site):
+    mission = make_mission(laps_only(site))
     full = list(mission.state.lap_route)
     task = asyncio.create_task(mission.start())
     await gcs.wait_reached(2)
@@ -100,8 +106,8 @@ async def test_end_laps_holds_and_saves_empty_route(make_mission, drone, gcs):
     assert MissionState.load().lap_route == []
 
 
-async def test_stale_end_laps_signal_is_cleared(make_mission, drone, gcs):
-    mission = make_mission()
+async def test_stale_end_laps_signal_is_cleared(make_mission, drone, gcs, site):
+    mission = make_mission(laps_only(site))
     full = list(mission.state.lap_route)
     gcs.signal("end_laps").set()
     await asyncio.wait_for(mission.start(), 2)
@@ -203,7 +209,7 @@ async def test_connect_checks_preflight_after_drone_and_gcs_start(make_mission, 
 async def test_main_saves_selected_state_before_connect(site, monkeypatch, resume):
     from bv_autonomy.missions.suas2026 import __main__ as entry
 
-    old = MissionState(WaypointSequence(site.laps[1:]))
+    old = MissionState(lap_route=WaypointSequence(site.laps[1:]), scan_route=WaypointSequence())
     old.save()
     expected = old if resume else MissionState.new(site)
     calls = []

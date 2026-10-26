@@ -15,6 +15,11 @@ class Waypoint:
 class WaypointSequence(list[Waypoint]):
     """Waypoints in the order they're flown. Build one from any list: WaypointSequence([a, b, c])."""
 
+    @classmethod
+    def at_alt(cls, alt: float, points: list[tuple[float, float]]) -> "WaypointSequence":
+        """Waypoints all at one altitude, from (lat, lon) pairs."""
+        return cls(Waypoint(lat, lon, alt) for lat, lon in points)
+
 
 @dataclass
 class Pose:
@@ -29,6 +34,8 @@ class Pose:
 
 @dataclass
 class Intrinsics:
+    width: int               # the image size it was calibrated at; it's only valid at this size
+    height: int
     fx: float
     fy: float
     cx: float

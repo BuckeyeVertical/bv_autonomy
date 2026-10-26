@@ -20,7 +20,7 @@ def rectangle():
 
 @pytest.fixture
 def planner(frame):
-    return SPathPlanner(100, frame.intrinsics, altitude=20, overlap=0.5)
+    return SPathPlanner(frame.intrinsics, altitude=20, overlap=0.5)
 
 
 @pytest.mark.parametrize("span", [60, 63])
@@ -45,7 +45,7 @@ def test_long_rows_alternate_direction_and_cover_area(planner, rectangle, span):
 
 
 def test_short_sweep_runs_along_short_side(frame, rectangle):
-    planner = SPathPlanner(100, frame.intrinsics, 20, 0.5, sweep="short")
+    planner = SPathPlanner(frame.intrinsics, 20, 0.5, sweep="short")
     route = planner.plan(rectangle)
     for start, end in zip(route[::2], route[1::2]):
         assert start.lon == pytest.approx(end.lon)
@@ -54,14 +54,14 @@ def test_short_sweep_runs_along_short_side(frame, rectangle):
 
 @pytest.mark.parametrize("side", ["top", "bottom"])
 def test_requested_start_side_preserves_coverage(frame, rectangle, side):
-    default = SPathPlanner(100, frame.intrinsics, 20, 0.5).plan(rectangle)
-    route = SPathPlanner(100, frame.intrinsics, 20, 0.5, start=side).plan(rectangle)
+    default = SPathPlanner(frame.intrinsics, 20, 0.5).plan(rectangle)
+    route = SPathPlanner(frame.intrinsics, 20, 0.5, start=side).plan(rectangle)
     assert route[0].lat > route[-1].lat if side == "top" else route[0].lat < route[-1].lat
     assert route == default or route == list(reversed(default))
 
 
 def test_area_smaller_than_footprint_uses_one_centered_row(frame, rectangle):
-    planner = SPathPlanner(100, frame.intrinsics, 100, 0.5)
+    planner = SPathPlanner(frame.intrinsics, 100, 0.5)
     route = planner.plan(rectangle)
     assert len(route) == 2
     assert route[0].lat * METERS_PER_DEGREE == pytest.approx(30)
@@ -71,23 +71,23 @@ def test_area_smaller_than_footprint_uses_one_centered_row(frame, rectangle):
 @pytest.mark.parametrize("changes,message", [
     ({"altitude": 0}, "altitude"),
     ({"altitude": -1}, "altitude"),
-    ({"image_width": 0}, "image width"),
     ({"overlap": -0.01}, "overlap"),
     ({"overlap": 1}, "overlap"),
     ({"sweep": "diagonal"}, "sweep"),
     ({"start": "left"}, "start"),
 ])
 def test_invalid_planner_settings_rejected(frame, changes, message):
-    settings = dict(image_width=100, intrinsics=frame.intrinsics, altitude=20, overlap=0.5)
+    settings = dict(intrinsics=frame.intrinsics, altitude=20, overlap=0.5)
     settings.update(changes)
     with pytest.raises(ValueError, match=message):
         SPathPlanner(**settings)
 
 
-def test_nonpositive_focal_length_rejected(frame):
-    frame.intrinsics.fx = 0
-    with pytest.raises(ValueError, match="focal length"):
-        SPathPlanner(100, frame.intrinsics, 20, 0.5)
+@pytest.mark.parametrize("field", ["width", "fx"])
+def test_nonpositive_width_or_focal_length_rejected(frame, field):
+    setattr(frame.intrinsics, field, 0)
+    with pytest.raises(ValueError, match="width and focal length"):
+        SPathPlanner(frame.intrinsics, 20, 0.5)
 
 
 @pytest.mark.parametrize("count", [0, 3, 5])

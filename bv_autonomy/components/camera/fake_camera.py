@@ -12,17 +12,16 @@ from bv_autonomy.fake_world import Target, project
 from bv_autonomy.types import Frame, Intrinsics
 
 # Bevy's camera: the RX0 at half resolution.
-BEVY_INTRINSICS = Intrinsics(fx=1148.2004184838818, fy=1148.2004184838818, cx=960.0, cy=540.0, dist=np.zeros(5))
+BEVY_INTRINSICS = Intrinsics(width=1920, height=1080, fx=1148.2004184838818, fy=1148.2004184838818, cx=960.0, cy=540.0, dist=np.zeros(5))
 
 
 class FakeCamera(Camera):
     """Makes frames at a fixed rate. Targets are drawn as filled squares where they'd be seen."""
 
-    def __init__(self, drone: Drone, targets: list[Target] | None = None, width: int = 1920, height: int = 1080,
+    def __init__(self, drone: Drone, targets: list[Target] | None = None,
                  intrinsics: Intrinsics = BEVY_INTRINSICS, fps: float = 15.0):
         self._drone = drone
         self._targets = list(targets or [])
-        self._width, self._height = width, height
         self._intrinsics = intrinsics
         self._period = 1.0 / fps
         self._sequence = 0
@@ -56,9 +55,9 @@ class FakeCamera(Camera):
     async def _produce(self) -> None:
         while True:
             pose = self._drone.pose()
-            image = np.full((self._height, self._width, 3), (60, 120, 80), dtype=np.uint8)   # grass green
+            image = np.full((self._intrinsics.height, self._intrinsics.width, 3), (60, 120, 80), dtype=np.uint8)   # grass green
             for target in self._targets:
-                box = project(target, pose, self._intrinsics, self._width, self._height)
+                box = project(target, pose, self._intrinsics, self._intrinsics.width, self._intrinsics.height)
                 if box is not None:
                     x1, y1, x2, y2 = (int(round(v)) for v in box)
                     image[y1:y2, x1:x2] = target.color_bgr
