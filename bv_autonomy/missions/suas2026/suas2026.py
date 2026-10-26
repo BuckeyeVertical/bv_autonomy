@@ -15,7 +15,7 @@ from bv_autonomy.components.stitcher import OpencvStitcher
 from bv_autonomy.missions import base
 from bv_autonomy.missions.base import Mission
 from bv_autonomy.missions.suas2026.confirmation import ConfirmationWindow, Sighting, distance_m, wanted
-from bv_autonomy.types import ApprovalRequest, Detection, Intrinsics, Waypoint, WaypointSequence
+from bv_autonomy.types import ApprovalRequest, Detection, Intrinsics, StitchProgress, Waypoint, WaypointSequence
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +71,7 @@ class MissionState(base.MissionState):
     delivered: list[Sighting] = field(default_factory=list)
     rejected: list[Sighting] = field(default_factory=list)
     returning: bool = False
+    stitching: StitchProgress | None = None
 
     @classmethod
     def new(cls, site: Site, intrinsics: Intrinsics) -> "MissionState":
@@ -93,8 +94,17 @@ class MissionState(base.MissionState):
             delivered=[Sighting(s["label"], Waypoint(**s["position"])) for s in data["delivered"]],
             rejected=[Sighting(s["label"], Waypoint(**s["position"])) for s in data["rejected"]],
             returning=data["returning"],
+            stitching=_stitch_progress(data["stitching"]),
         )
 
+
+
+def _stitch_progress(data: dict | None) -> StitchProgress | None:
+    """Rebuilds saved stitching progress, or returns None if none was saved."""
+    if data is None:
+        return None
+    last = Waypoint(**data["last"]) if data["last"] is not None else None
+    return StitchProgress(data["row"], data["heading"], last)
 
 class Suas2026(Mission):
     """SUAS 2026: fly laps, then scan the search area, delivering a payload to each target found."""
@@ -159,6 +169,8 @@ class Suas2026(Mission):
         await self.payload.start()
         log.info("payload at rest")
         await self.camera.start()
+        if self.state.stitching is not None:
+            self.stitcher.resume(self.state.stitching)
         started = time.monotonic()
         await self.detector.start()
         log.info("detector loaded in %.0f s", time.monotonic() - started)
@@ -274,6 +286,9 @@ class Suas2026(Mission):
                 camera_lost = False
             self.gcs.preview(frame)
             self.stitcher.add(frame)
+            if self.stitcher.progress() != self.state.stitching:
+                self.state.stitching = self.stitcher.progress()
+                self.state.save()
             found = self.state.targets + self.state.delivered
             wanted_now = []
             for detection in await self.detector.detect(frame):

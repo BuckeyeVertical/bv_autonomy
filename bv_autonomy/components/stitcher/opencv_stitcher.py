@@ -16,7 +16,7 @@ import numpy as np
 from bv_autonomy import paths
 from bv_autonomy.components.stitcher.base import Stitcher
 from bv_autonomy.components.stitcher.frame_recorder import FrameRecorder
-from bv_autonomy.types import Frame
+from bv_autonomy.types import Frame, StitchProgress
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +43,12 @@ class OpencvStitcher(Stitcher):
 
     def add(self, frame: Frame) -> None:
         self._recorder.add(frame)
+
+    def progress(self) -> StitchProgress | None:
+        return self._recorder.progress()
+
+    def resume(self, progress: StitchProgress) -> None:
+        self._recorder.resume(progress)
 
     async def stitch(self) -> Path:
         return await asyncio.to_thread(self._stitch)

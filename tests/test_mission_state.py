@@ -6,7 +6,7 @@ from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
 from bv_autonomy.missions.suas2026 import MissionState
 from bv_autonomy.missions.suas2026.confirmation import Sighting
 from bv_autonomy.missions.suas2026.suas2026 import LAP_COUNT
-from bv_autonomy.types import Waypoint, WaypointSequence
+from bv_autonomy.types import StitchProgress, Waypoint, WaypointSequence
 
 
 def test_new_state_repeats_laps_and_closes_route(site):
@@ -20,6 +20,7 @@ def test_save_load_preserves_waypoints_and_order(site):
     state.targets.append(Sighting("tent", Waypoint(36.1, -96.1, 0.0)))
     state.rejected.append(Sighting("person", Waypoint(36.2, -96.2, 0.0)))
     state.delivered.append(Sighting("person", Waypoint(36.3, -96.3, 0.0)))
+    state.stitching = StitchProgress(2, 181.5, Waypoint(36.4, -96.4, 48.8))
     state.save()
     restored = MissionState.load()
     assert restored == state

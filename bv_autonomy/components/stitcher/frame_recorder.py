@@ -2,6 +2,7 @@
 
 import logging
 import math
+import re
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -11,12 +12,13 @@ import piexif
 
 from bv_autonomy.components.stitcher.exif import CameraExif, FrameGeotag, build_exif_bytes
 from bv_autonomy.components.terrain import Terrain
-from bv_autonomy.types import Frame, Waypoint
+from bv_autonomy.types import Frame, StitchProgress, Waypoint
 
 log = logging.getLogger(__name__)
 
 _EARTH_R = 6378137.0
 _NEW_ROW_TURN_DEG = 90.0
+_FRAME_NAME = re.compile(r"row(\d+)_(\d+)\.jpg")
 
 
 class FrameRecorder:
@@ -27,7 +29,9 @@ class FrameRecorder:
     heading has turned more than 90 degrees from the current row's starts a new row, so the
     mission should only add frames while flying rows, not on the legs between them.
 
-    Frames are written as row{N}_{M}.jpg, like bv_core's raw_frames, on a background thread.
+    Frames are written as row{N}_{M}.jpg, like bv_core's raw_frames, on a background thread. A recorder
+    started on a folder that already has frames keeps them and numbers new ones after them, and resume()
+    carries on the row it was on before a crash instead of splitting it.
     With camera set, each is geotagged for ODM; its altitude is above sea level when a terrain
     is given, and otherwise the altitude above the ground.
     """
@@ -46,6 +50,7 @@ class FrameRecorder:
         self._row = 0
         self._row_heading: float | None = None
         self._last: Waypoint | None = None
+        self._pick_up_frames()
 
     def add(self, frame: Frame) -> bool:
         """Saves the frame if the drone has moved far enough since the last one, and returns whether it did."""
@@ -74,6 +79,25 @@ class FrameRecorder:
         for write in self._writes:
             write.result()
         self._writes.clear()
+
+    def progress(self) -> StitchProgress:
+        """Returns the current row, its heading and where the last frame was kept."""
+        return StitchProgress(self._row, self._row_heading, self._last)
+
+    def resume(self, progress: StitchProgress) -> None:
+        """Carries on from a saved place, so the next frame continues that row unless the drone has turned."""
+        self._row, self._row_heading, self._last = progress.row, progress.heading, progress.last
+        self._rows.setdefault(self._row, [])
+
+    def _pick_up_frames(self) -> None:
+        """Adds the frames already in the folder to the rows, in order, and numbers new rows after them."""
+        for path in self.directory.glob("row*_*.jpg"):
+            if match := _FRAME_NAME.fullmatch(path.name):
+                self._rows.setdefault(int(match[1]), []).append(path)
+        for paths in self._rows.values():
+            paths.sort(key=lambda path: int(_FRAME_NAME.fullmatch(path.name)[2]))
+        self._rows = dict(sorted(self._rows.items()))
+        self._row = max(self._rows, default=0)
 
     def _spacing_m(self, frame: Frame) -> float:
         height_px = frame.image.shape[0]

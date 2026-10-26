@@ -7,7 +7,7 @@ import numpy as np
 
 from bv_autonomy import paths
 from bv_autonomy.components.stitcher.base import Stitcher
-from bv_autonomy.types import Frame
+from bv_autonomy.types import Frame, StitchProgress
 
 
 class FakeStitcher(Stitcher):
@@ -27,6 +27,12 @@ class FakeStitcher(Stitcher):
             return
         step = max(1, frame.image.shape[1] // self._thumb_width)
         self.thumbnails.append(frame.image[::step, ::step].copy())
+
+    def progress(self) -> StitchProgress | None:
+        return None
+
+    def resume(self, progress: StitchProgress) -> None:
+        pass
 
     async def stitch(self) -> Path:
         if not self.thumbnails:

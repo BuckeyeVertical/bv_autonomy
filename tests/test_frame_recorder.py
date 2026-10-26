@@ -59,6 +59,50 @@ def test_new_row_uses_original_row_heading_and_handles_north_wrap(make_recorder,
     }
 
 
+def names(recorder):
+    """Returns the recorder's rows as frame file names."""
+    return {row: [path.name for path in paths] for row, paths in recorder.rows().items()}
+
+
+def test_a_resumed_recorder_carries_on_the_same_row_without_overwriting(make_recorder, frame):
+    before = make_recorder()
+    before.add(moved(frame, east=0))
+    before.add(moved(frame, east=11))
+    before.flush()
+    first = before.rows()[1][0]
+    written = first.stat().st_mtime_ns
+
+    after = make_recorder()
+    after.resume(before.progress())
+    assert not after.add(moved(frame, east=15))
+    assert after.add(moved(frame, east=22))
+    after.flush()
+    assert names(after) == {1: ["row1_1.jpg", "row1_2.jpg", "row1_3.jpg"]}
+    assert first.stat().st_mtime_ns == written
+
+
+def test_a_resumed_recorder_starts_the_next_row_after_a_turn(make_recorder, frame):
+    before = make_recorder()
+    before.add(moved(frame, east=0))
+    before.flush()
+    after = make_recorder()
+    after.resume(before.progress())
+    assert after.add(moved(frame, east=50, heading=180))
+    after.flush()
+    assert names(after) == {1: ["row1_1.jpg"], 2: ["row2_1.jpg"]}
+
+
+def test_frames_without_saved_progress_are_kept_and_numbering_carries_on(make_recorder, frame):
+    before = make_recorder()
+    before.add(moved(frame, east=0))
+    before.add(moved(frame, east=11))
+    before.flush()
+    after = make_recorder()
+    assert after.add(moved(frame, east=22))
+    after.flush()
+    assert names(after) == {1: ["row1_1.jpg", "row1_2.jpg"], 2: ["row2_1.jpg"]}
+
+
 def test_flush_propagates_background_image_write_failure(make_recorder, frame, monkeypatch):
     recorder = make_recorder()
     monkeypatch.setattr(recording.cv2, "imwrite", lambda *args: False)

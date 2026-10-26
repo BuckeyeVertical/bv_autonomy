@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -64,3 +65,22 @@ async def test_a_failed_return_stops_the_map_and_raises(make_mission, drone, sit
         await asyncio.wait_for(mission.start(), 2)
     await asyncio.sleep(0)
     assert stitching[0].cancelled()
+
+
+async def test_stitching_progress_is_saved_and_handed_back_on_resume(make_mission, drone, site, tmp_path):
+    from bv_autonomy.components.stitcher.opencv_stitcher import OpencvStitcher
+
+    drone._speedup = 100
+    mission = make_mission(scan_only(site))
+    mission.stitcher = OpencvStitcher(output_dir=tmp_path / "stitching")
+    mission.return_home = AsyncMock()
+    await mission.camera.start()
+    await mission.detector.start()
+    await asyncio.wait_for(mission.start(), 10)
+    saved = MissionState.load().stitching
+    assert saved == mission.stitcher.progress() and saved.row >= 1
+
+    resumed = make_mission(MissionState.load())
+    resumed.stitcher = OpencvStitcher(output_dir=tmp_path / "stitching")
+    await resumed.connect(resuming=True)
+    assert resumed.stitcher.progress() == saved

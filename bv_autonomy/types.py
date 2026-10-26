@@ -65,3 +65,12 @@ class ApprovalRequest:
     confidence: float
     crop: bytes
     drone_position: Waypoint
+
+
+@dataclass
+class StitchProgress:
+    """Where a stitcher is in the scan, saved so a resumed mission carries on the row it was on."""
+
+    row: int
+    heading: float | None
+    last: Waypoint | None
