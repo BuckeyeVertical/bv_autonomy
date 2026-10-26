@@ -96,14 +96,14 @@ class MavsdkDrone(Drone):
         log.info("connected to PX4 at %s", self._address)
 
     async def disconnect(self) -> None:
-        """Ends the telemetry subscriptions, then releases MAVSDK's plugins and the connection, in that order."""
+        """Releases MAVSDK's plugins, then ends the telemetry tasks, then releases the connection."""
+        for plugin in (self._action, self._mission, self._telemetry):
+            if plugin is not None:
+                plugin.destroy()
         for task in self._tasks:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks = []
-        for plugin in (self._action, self._mission, self._telemetry):
-            if plugin is not None:
-                plugin.destroy()
         if self._mavsdk is not None:
             self._mavsdk.destroy()
         self._action = self._mission = self._telemetry = self._mavsdk = None

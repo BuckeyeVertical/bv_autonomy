@@ -339,7 +339,7 @@ async def test_goto_to_where_the_drone_already_is_flies_nothing(mavdrone, monkey
     start.assert_not_awaited()
 
 
-async def test_disconnect_ends_subscriptions_before_releasing_mavsdk():
+async def test_disconnect_releases_the_plugins_before_ending_the_subscriptions():
     drone = md.MavsdkDrone()
     events = []
 
@@ -361,7 +361,7 @@ async def test_disconnect_ends_subscriptions_before_releasing_mavsdk():
     drone._action, drone._mission, drone._telemetry = Releasable("action"), Releasable("mission"), Releasable("telemetry")
     drone._mavsdk = Releasable("mavsdk")
     await drone.disconnect()
-    assert events == ["unsubscribed", "unsubscribed", "action", "mission", "telemetry", "mavsdk"]
+    assert events == ["action", "mission", "telemetry", "unsubscribed", "unsubscribed", "mavsdk"]
     assert drone._mavsdk is None and drone._tasks == []
 
 
