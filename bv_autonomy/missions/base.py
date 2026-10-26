@@ -58,7 +58,7 @@ def start_logging(directory: Path) -> Path:
     console = _Console()
     console.setFormatter(_ConsoleFormat())
     console.addFilter(lambda r: r.levelno >= (logging.INFO if r.name.startswith("bv_autonomy") else logging.WARNING))
-    file = logging.FileHandler(path, mode="a")
+    file = logging.FileHandler(path, mode="a", encoding="utf-8")
     file.setFormatter(_FileFormat("%(asctime)s.%(msecs)03d %(levelname)-7s %(source)-13s %(message)s",
                                   "%Y-%m-%d %H:%M:%S"))
     file.addFilter(lambda r: r.levelno >= (logging.DEBUG if r.name.startswith("bv_autonomy") else logging.INFO))

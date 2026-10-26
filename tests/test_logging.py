@@ -66,3 +66,9 @@ def test_mavsdk_messages_are_passed_to_python_logging(caplog):
     with caplog.at_level(logging.DEBUG, logger="mavsdk"):
         assert mavsdk_drone._forward_mavsdk_log(LogLevel.WARN, "link lost", None, 0) is True
     assert [(r.name, r.levelno, r.getMessage()) for r in caplog.records] == [("mavsdk", logging.WARNING, "link lost")]
+
+
+def test_the_log_file_is_utf8_whatever_the_computer(logs):
+    logging.getLogger("lightly_train").info("Remapping keys (backbone. → _model_wrapper.)")
+    assert "backbone. → _model_wrapper." in logs.read_bytes().decode("utf-8")
+    assert [h.encoding for h in logging.getLogger().handlers if getattr(h, "baseFilename", None) == str(logs)] == ["utf-8"]
