@@ -328,3 +328,14 @@ async def test_takeoff_waits_for_climb_after_leaving_ground(mavdrone, clock):
     await mavdrone.takeoff(10)
     assert mavdrone.position().alt >= 9.5
     mavdrone._action.set_takeoff_altitude.assert_awaited_once_with(10)
+
+
+async def test_goto_to_where_the_drone_already_is_flies_nothing(mavdrone, monkeypatch):
+    start = AsyncMock()
+    monkeypatch.setattr(mavdrone, "_start_mission", start)
+    mavdrone._flight_mode = FlightMode.HOLD
+    here = mavdrone.position()
+    await mavdrone.goto(Waypoint(here.lat, here.lon, here.alt), 3.0, 1.0)
+    start.assert_not_awaited()
+
+

@@ -109,6 +109,8 @@ class MavsdkDrone(Drone):
         await self._wait(lambda: self._position.relative_altitude_m >= alt - 0.5, alt / 0.5 + 30, f"reaching {alt} m")
 
     async def goto(self, point: Waypoint, speed: float | None = None, tolerance: float = 1.0) -> None:
+        if _distance_m(self.position(), point) <= tolerance:
+            return
         await self._start_mission([_mission_item(point, speed, tolerance, fly_through=False)], point, tolerance)
         await self._wait_for_progress(
             lambda: _distance_m(self.position(), point) <= tolerance,
