@@ -136,7 +136,7 @@ async def drone(site):
 
 @pytest.fixture
 def targets():
-    """What the fake camera and detector see; empty unless a test adds some."""
+    """The targets the fake camera and detector can see."""
     return []
 
 

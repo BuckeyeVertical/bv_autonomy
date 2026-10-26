@@ -12,7 +12,4 @@ class Camera(ABC):
 
     @abstractmethod
     async def latest(self, timeout: float | None = None) -> Frame | None:
-        """Newest frame not returned before, dropping older ones.
-
-        Waits up to timeout (forever if None) for one to arrive; None if none does.
-        """
+        """Returns the newest frame not returned before, or None if no new frame arrives within the timeout."""

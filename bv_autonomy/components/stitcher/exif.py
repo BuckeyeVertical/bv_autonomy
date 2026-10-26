@@ -31,11 +31,7 @@ class CameraExif:
     @classmethod
     def from_calibration(cls, make: str, model: str, fx: float, fy: float,
                          calib_width_px: int, calib_height_px: int, sensor_width_mm: float):
-        """Solve the physical camera that produces these intrinsics.
-
-        fx and the sensor's physical width give the focal length; the sensor height is then
-        solved from fy rather than assumed square (a 4K RX0 II frame is a 16:9 crop of a 3:2 sensor).
-        """
+        """Works out the physical camera that matches a calibration."""
         if min(fx, fy, sensor_width_mm) <= 0.0:
             raise ValueError("focal lengths and sensor width must be positive")
         if min(calib_width_px, calib_height_px) <= 0:
@@ -45,7 +41,7 @@ class CameraExif:
         return cls(make, model, focal_length_mm, float(sensor_width_mm), sensor_height_mm)
 
     def exif_dict(self, image_width_px: int, image_height_px: int) -> dict:
-        """piexif IFDs for an image of this pixel size (the focal-plane resolution follows it)."""
+        """Returns the camera's EXIF tags for an image of the given size."""
         if min(image_width_px, image_height_px) <= 0:
             raise ValueError("image dimensions must be positive")
         x_res = image_width_px * MM_PER_INCH / self.sensor_width_mm
@@ -97,7 +93,7 @@ class FrameGeotag:
 
 
 def build_exif_bytes(camera: CameraExif, geotag: FrameGeotag, image_width_px: int, image_height_px: int) -> bytes:
-    """Merge the camera and frame metadata into one EXIF block."""
+    """Combines a camera's and a frame's metadata into one EXIF block."""
     cam = camera.exif_dict(image_width_px, image_height_px)
     frame = geotag.exif_dict()
     return piexif.dump({
@@ -114,7 +110,7 @@ def _rational(value: float, scale: int) -> tuple[int, int]:
 
 
 def _dms_rationals(decimal_degrees: float) -> list[tuple[int, int]]:
-    """Split a decimal degree into EXIF's degree/minute/second triple (the sign goes in a ref tag)."""
+    """Converts decimal degrees into the degrees, minutes and seconds that EXIF stores."""
     remaining = abs(decimal_degrees)
     degrees = int(remaining)
     minutes_total = (remaining - degrees) * 60.0

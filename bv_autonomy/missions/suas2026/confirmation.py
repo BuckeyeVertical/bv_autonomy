@@ -25,10 +25,7 @@ class ConfirmationWindow:
     """
 
     def __init__(self, class_ids: dict[str, int], hits: int, frames: int, radius_m: float):
-        """
-        Args:
-            class_ids: The target labels, with the ids the dashboard shows them under.
-        """
+        """Sets up a window that confirms the given target labels."""
         if not 1 <= hits <= frames:
             raise ValueError("hits must be between 1 and frames")
         self._class_ids = dict(class_ids)
@@ -40,7 +37,7 @@ class ConfirmationWindow:
         self._frames.clear()
 
     def add(self, sightings: list[Sighting]) -> Sighting | None:
-        """Add one frame's sightings. Returns the target, at its sightings' centroid, once a label confirms."""
+        """Adds one frame's sightings and returns a target once one is confirmed."""
         self._frames.append(sightings)
         for label in self._class_ids:
             seen = [next(s for s in frame if s.label == label) for frame in self._frames
@@ -52,7 +49,7 @@ class ConfirmationWindow:
         return None
 
     def summary(self, found: set[str]) -> dict:
-        """The window in the dashboard's confirm_window format. found: labels already confirmed."""
+        """Returns the window's current state for the dashboard."""
         return {
             "required": self._hits,
             "window": self._frames.maxlen,
@@ -66,7 +63,9 @@ class ConfirmationWindow:
 
 
 def wanted(sighting: Sighting, targets: list[Sighting], rejected: list[Sighting], radius_m: float) -> bool:
-    """Whether a sighting could be a target still to find: not a label already approved, nor near a rejected spot."""
+    """Returns whether a sighting could still be a new target, meaning its label isn't found yet and it isn't
+    near a rejected spot.
+    """
     if any(t.label == sighting.label for t in targets):
         return False
     return not any(r.label == sighting.label and distance_m(r.position, sighting.position) <= radius_m
@@ -74,7 +73,7 @@ def wanted(sighting: Sighting, targets: list[Sighting], rejected: list[Sighting]
 
 
 def distance_m(a: Waypoint, b: Waypoint) -> float:
-    """Ground distance, flat-earth: fine over a competition field."""
+    """Returns the distance along the ground between two points, in meters."""
     north = _EARTH_R * math.radians(b.lat - a.lat)
     east = _EARTH_R * math.radians(b.lon - a.lon) * math.cos(math.radians(a.lat))
     return math.hypot(north, east)

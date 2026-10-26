@@ -21,5 +21,5 @@ SUAS2026_STATE = REPO_DIR / "bv_autonomy" / "missions" / "suas2026" / "state" / 
 
 
 def new_run_dir(name: str) -> Path:
-    """A fresh folder under output/ for one run, e.g. output/20261021_142530_odm."""
+    """Returns a new folder under output for one run."""
     return OUTPUT_DIR / f"{datetime.now():%Y%m%d_%H%M%S}_{name}"

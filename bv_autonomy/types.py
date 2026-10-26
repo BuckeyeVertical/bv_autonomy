@@ -17,7 +17,7 @@ class WaypointSequence(list[Waypoint]):
 
     @classmethod
     def at_alt(cls, alt: float, points: list[tuple[float, float]]) -> "WaypointSequence":
-        """Waypoints all at one altitude, from (lat, lon) pairs."""
+        """Creates waypoints at one altitude from latitude and longitude pairs."""
         return cls(Waypoint(lat, lon, alt) for lat, lon in points)
 
 

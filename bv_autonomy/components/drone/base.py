@@ -16,15 +16,11 @@ class Drone(ABC):
 
     @abstractmethod
     async def takeoff(self, alt: float) -> None:
-        """Climb to alt meters above the ground. Finishes once at that altitude."""
+        """Takes off and climbs to the given altitude above the ground."""
 
     @abstractmethod
     async def goto(self, point: Waypoint, speed: float | None = None, tolerance: float = 1.0) -> None:
-        """Fly to point. Finishes once the drone is within tolerance meters of it.
-
-        A large tolerance finishes early, so the next goto redirects the drone before it slows
-        down (bv_core flew laps with 40 m and scans with 1 m).
-        """
+        """Flies to a point and returns once the drone is within the tolerance of it."""
 
     @abstractmethod
     async def fly_mission(
@@ -34,44 +30,42 @@ class Drone(ABC):
         tolerance: float = 1.0,
         on_progress: Callable[[int], None] | None = None,
     ) -> None:
-        """Fly through every point of route in order as one mission, without stopping at each.
-
-        A point counts as reached within tolerance meters. Finishes once the last point is reached.
-        on_progress(reached) is called with 0 at the start and again each time a point is reached.
+        """Flies through every point of a route in order without stopping at each, reporting progress as
+        points are reached.
         """
 
     @abstractmethod
     async def hold(self) -> None:
-        """Stop and hover in place."""
+        """Stops the drone and hovers in place."""
 
     @abstractmethod
     async def land(self) -> None:
-        """Land in place. Finishes once on the ground."""
+        """Lands where the drone is."""
 
     @abstractmethod
     async def return_home(self) -> None:
-        """Fly back to the home position and land there."""
+        """Flies back to the home position and lands there."""
 
 
     @abstractmethod
     def pose(self) -> Pose:
-        """Latest known position and attitude."""
+        """Returns the drone's latest known position and attitude."""
 
     @abstractmethod
     def position(self) -> Waypoint:
-        """Latest known position."""
+        """Returns the drone's latest known position."""
 
     @abstractmethod
     def heading(self) -> float:
-        """Degrees clockwise from north."""
+        """Returns the direction the drone faces, in degrees clockwise from north."""
 
     @abstractmethod
     def home(self) -> Waypoint | None:
-        """Home position, or None before PX4 has set one."""
+        """Returns the home position, or None if it isn't known yet."""
 
     @abstractmethod
     def battery(self) -> float:
-        """Remaining charge, 0.0 to 1.0."""
+        """Returns the remaining battery charge as a fraction from 0 to 1."""
 
     @abstractmethod
     def is_armed(self) -> bool: ...

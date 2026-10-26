@@ -10,10 +10,8 @@ _TEXT_BGR = (12, 24, 12)
 
 def annotated_crop(detection: Detection, margin: float = 2.5, min_px: int = 320, max_px: int = 1024,
                    quality: int = 85) -> bytes:
-    """JPEG of the frame around the detection's box, with the box and "label confidence" drawn on.
-
-    The crop is margin times the box, at least min_px, and is shrunk so its longer side is at most
-    max_px. A whole-frame downscale would make a distant person a few unreadable pixels.
+    """Returns a JPEG of the area around a detection with its box and label drawn on, sized so the operator
+    can see it clearly.
     """
     image = detection.frame.image
     height, width = image.shape[:2]
@@ -36,7 +34,7 @@ def annotated_crop(detection: Detection, margin: float = 2.5, min_px: int = 320,
 
 
 def _window(box, width: int, height: int, margin: float, min_px: int) -> tuple[int, int, int, int]:
-    """The crop's left, top, right, bottom. Near an edge it's shifted, not shrunk, so it keeps its context."""
+    """Returns the crop's edges around a box, kept inside the frame."""
     x1, y1, x2, y2 = box
     w = min(max(max(x2 - x1, 1.0) * margin, min_px), width)
     h = min(max(max(y2 - y1, 1.0) * margin, min_px), height)

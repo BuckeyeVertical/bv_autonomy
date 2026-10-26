@@ -143,7 +143,7 @@ class FakeDrone(Drone):
 
 
 def _offset_m(a: Waypoint, b: Waypoint) -> tuple[float, float, float, float]:
-    """East, north and up from a to b, and the straight-line distance, in meters."""
+    """Returns how far b is from a to the east, north and up, and the straight line distance, all in meters."""
     east = _EARTH_R * math.radians(b.lon - a.lon) * math.cos(math.radians(a.lat))
     north = _EARTH_R * math.radians(b.lat - a.lat)
     up = b.alt - a.alt

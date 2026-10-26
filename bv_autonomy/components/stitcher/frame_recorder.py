@@ -48,7 +48,7 @@ class FrameRecorder:
         self._last: Waypoint | None = None
 
     def add(self, frame: Frame) -> bool:
-        """Keep the frame if it's due. Returns whether it was kept. Doesn't wait for the write."""
+        """Saves the frame if the drone has moved far enough since the last one, and returns whether it did."""
         position = frame.pose.position
         heading = math.degrees(frame.pose.yaw) % 360.0
         new_row = self._row_heading is None or _angle_between(heading, self._row_heading) > _NEW_ROW_TURN_DEG
@@ -66,11 +66,11 @@ class FrameRecorder:
         return True
 
     def rows(self) -> dict[int, list[Path]]:
-        """Kept frame paths per row, in the order flown. Call flush() first."""
+        """Returns the saved frame paths for each row in the order they were flown."""
         return {row: list(paths) for row, paths in self._rows.items()}
 
     def flush(self) -> None:
-        """Wait for every kept frame to be on disk. Blocks; run it off the event loop."""
+        """Waits until every saved frame has been written to disk."""
         for write in self._writes:
             write.result()
         self._writes.clear()

@@ -6,7 +6,6 @@ dependencies = ["numpy"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio"]
-# Not a hard dependency: the Jetson uses its system OpenCV, built with GStreamer.
 opencv = ["opencv-python"]
 ltdetr = ["lightly-train"]
 localizer = ["geographiclib", "scipy"]

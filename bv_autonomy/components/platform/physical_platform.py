@@ -13,10 +13,7 @@ class PhysicalPlatform(Platform):
     """The aircraft: PX4 over serial and the RX0."""
 
     def __init__(self, address: str = "serial:///dev/ttyTHS1:921600"):
-        """
-        Args:
-            address: MAVSDK connection URL for the flight controller.
-        """
+        """Sets up the aircraft's drone, camera and payload."""
         self.drone = MavsdkDrone(address)
         self.camera = Rx0Camera(self.drone)
         log.warning("PhysicalPlatform has no payload driver yet; deliveries won't drop anything")

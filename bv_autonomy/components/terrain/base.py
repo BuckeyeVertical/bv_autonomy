@@ -8,8 +8,8 @@ class Terrain(ABC):
 
     @abstractmethod
     def ground_msl(self, lat: float, lon: float) -> float:
-        """Ground height above sea level at this point, in meters."""
+        """Returns the ground's height above sea level at a point, in meters."""
 
     def msl(self, point: Waypoint) -> float:
-        """The point's altitude above sea level, in meters."""
+        """Returns a point's altitude above sea level, in meters."""
         return self.ground_msl(point.lat, point.lon) + point.alt

@@ -25,13 +25,8 @@ class SPathPlanner(PathPlanner):
         sweep: Literal["long", "short"] = "long",
         start: Literal["top", "bottom"] | None = None,
     ):
-        """
-        Args:
-            intrinsics: Camera calibration; its width and fx set the ground footprint.
-            altitude: Scan height above the ground, in meters.
-            overlap: Fraction of the camera's ground width shared by neighboring rows, from 0 to 1.
-            sweep: "long" runs rows along the longer side of the area, "short" along the shorter one.
-            start: "top" starts on the north side, "bottom" on the south. None keeps the corner order.
+        """Sets up a planner for a camera flying at the given altitude, with rows spaced so neighboring views
+        overlap.
         """
         if altitude <= 0:
             raise ValueError("altitude must be positive")
@@ -51,7 +46,7 @@ class SPathPlanner(PathPlanner):
         self._start = start
 
     def plan(self, boundary: WaypointSequence) -> WaypointSequence:
-        """Two waypoints per row, start then end. boundary is four corners in order around the area."""
+        """Returns the start and end of each row needed to cover the area inside four corners."""
         if len(boundary) != 4:
             raise ValueError("boundary must contain four ordered corners")
         points = [(p.lat, p.lon) for p in boundary]
@@ -87,7 +82,7 @@ class SPathPlanner(PathPlanner):
 
 
 def _row_offsets(span_m: float, footprint_m: float, overlap: float) -> list[float]:
-    """Distances of each row's center line from the first side, in meters."""
+    """Returns how far each row's center line is from the first side of the area, in meters."""
     if span_m <= footprint_m:
         return [span_m / 2.0]
     center_span_m = span_m - footprint_m

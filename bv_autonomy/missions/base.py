@@ -28,7 +28,7 @@ class MissionState(ABC):
     @classmethod
     @abstractmethod
     def from_dict(cls, data: dict) -> Self:
-        """Rebuild the fields from saved JSON, which keeps only plain lists and dicts."""
+        """Rebuilds a state from its saved form."""
 
 
 class Mission(ABC):
@@ -37,7 +37,7 @@ class Mission(ABC):
     state: MissionState
 
     async def start(self):
-        """Every mission inherits this. Don't override it."""
+        """Runs the mission, and gets the aircraft somewhere safe if it fails or is stopped."""
         try:
             await self.run()
         except BaseException:
@@ -46,7 +46,7 @@ class Mission(ABC):
 
     @abstractmethod
     async def run(self):
-        """The competition, step by step."""
+        """Flies the competition from start to finish."""
 
     async def on_abort(self):
-        """Called when run() fails or is stopped. Override it to get the aircraft somewhere safe."""
+        """Gets the aircraft somewhere safe after the mission fails or is stopped."""

@@ -14,7 +14,7 @@ from bv_autonomy.types import Waypoint, WaypointSequence
 
 
 def scan_only(site):
-    """A fresh state with laps already done, for tests about the scan alone."""
+    """Returns a new state with laps already done, for tests of the scan alone."""
     return MissionState(lap_route=WaypointSequence(), scan_route=MissionState.new(site, BEVY_INTRINSICS).scan_route)
 
 

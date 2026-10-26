@@ -55,12 +55,7 @@ class BvGcs(Gcs):
         fix_interval: float = 0.5,
         frame_cache_size: int = 32,
     ):
-        """
-        Args:
-            web_dist: The dashboard's built frontend. If it isn't there, only the API is served.
-            drone: Sends its position to the dashboard's map.
-            class_ids: Label to class id, for the dashboard's class_id field (e.g. {"person": 0, "tent": 1}).
-        """
+        """Sets up the server that connects the mission to the operator's dashboard."""
         self._host = host
         self._port = port
         self._dist = Path(web_dist)

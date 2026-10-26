@@ -32,13 +32,7 @@ class OpencvStitcher(Stitcher):
         match_confidence: float = 0.7,
         gap_width: int = 50,
     ):
-        """
-        Args:
-            output_dir: Where frames (in frames/) and the mosaic are written. Defaults to a new run folder in output/.
-            overlap: Fraction of each frame shared with the next one along a row.
-            max_width: Frames are downscaled to this width before stitching.
-        Defaults are bv_core's.
-        """
+        """Sets up a stitcher that builds the map with OpenCV."""
         self._output_dir = Path(output_dir) if output_dir is not None else paths.new_run_dir("opencv_stitch")
         self._recorder = FrameRecorder(self._output_dir / "frames", overlap)
         self._max_width = max(100, max_width)
@@ -69,7 +63,7 @@ class OpencvStitcher(Stitcher):
 
 def stitch_rows(rows: dict[int, list[Path]], max_width: int = 1500, max_per_row: int = 50,
                 feature_count: int = 5000, match_confidence: float = 0.7, gap_width: int = 50) -> np.ndarray:
-    """bv_core's two phases: stitch each row into a strip, then the strips top to bottom."""
+    """Stitches each row of frames into a strip, then joins the strips into one map."""
     strips = {}
     failed = []
     for row in sorted(rows):
@@ -102,7 +96,7 @@ def stitch_rows(rows: dict[int, list[Path]], max_width: int = 1500, max_per_row:
 
 
 def _normalize_row_orientation(images: list[np.ndarray], row: int) -> list[np.ndarray]:
-    """Rotate the rows flown in reverse (even rows of the S) to match the first row."""
+    """Turns the rows flown in the opposite direction so every row faces the same way."""
     if row % 2 == 0:
         return [cv2.rotate(image, cv2.ROTATE_180) for image in images]
     return images
@@ -124,7 +118,7 @@ def _load_and_resize(paths: list[Path], max_width: int) -> list[np.ndarray]:
 
 
 def _find_homography(img1, img2, feature_count, match_confidence):
-    """Homography mapping img2 onto img1, or (False, reason)."""
+    """Finds the transform that maps one image onto another, or returns why it couldn't."""
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     orb = cv2.ORB_create(nfeatures=feature_count)
@@ -156,7 +150,7 @@ def _find_homography(img1, img2, feature_count, match_confidence):
 
 
 def _stitch_pair(img1, img2, H):
-    """Warp img2 onto img1's canvas with H, averaging where they overlap."""
+    """Warps one image onto another and blends them where they overlap."""
     h1, w1 = img1.shape[:2]
     h2, w2 = img2.shape[:2]
     corners2 = cv2.perspectiveTransform(np.float32([[0, 0], [w2, 0], [w2, h2], [0, h2]]).reshape(-1, 1, 2), H)
@@ -195,7 +189,7 @@ def _stitch_pair(img1, img2, H):
 
 
 def _concatenate_segments(segments, gap_width):
-    """Join row segments side by side with red bars marking the gaps."""
+    """Joins row segments side by side, marking the gaps between them."""
     max_h = max(seg.shape[0] for seg in segments)
     total_w = sum(seg.shape[1] for seg in segments) + (len(segments) - 1) * gap_width
     canvas = np.zeros((max_h, total_w, 3), dtype=np.uint8)
@@ -212,7 +206,7 @@ def _concatenate_segments(segments, gap_width):
 
 
 def _stitch_row_with_fallback(images, feature_count, match_confidence, gap_width, label=""):
-    """Chain a row's frames, skipping one bad frame, or starting a new segment after two."""
+    """Stitches a row's frames in order, skipping or splitting around frames that don't match."""
     if not images:
         return False, f"no images for {label}", {}
     if len(images) == 1:
@@ -258,7 +252,7 @@ def _stitch_row_with_fallback(images, feature_count, match_confidence, gap_width
 
 
 def _stitch_sequential(images, feature_count, match_confidence):
-    """Chain images in order, failing on the first one that won't match."""
+    """Stitches images in order and fails at the first one that doesn't match."""
     if not images:
         return False, "no images"
     mosaic = images[0]

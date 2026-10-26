@@ -15,7 +15,7 @@ def scan_only(site):
 
 @pytest.fixture
 def on_first_row(site, targets):
-    """A person halfway along the first scan row."""
+    """Places a person halfway along the first scan row."""
     a, b = MissionState.new(site, BEVY_INTRINSICS).scan_route[:2]
     position = Waypoint((a.lat + b.lat) / 2, (a.lon + b.lon) / 2, 0.0)
     targets.append(Target("person", position))

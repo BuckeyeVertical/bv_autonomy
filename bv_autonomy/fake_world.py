@@ -17,11 +17,7 @@ class Target:
 
 
 def project(target: Target, pose: Pose, intrinsics: Intrinsics, width: int, height: int):
-    """Where the target appears in a downward camera's image, as a clipped (x1, y1, x2, y2), or None.
-
-    Same camera as the Bevy sim and bv_core's gimbal: pointing straight down, the image's top
-    toward the drone's nose and its right toward the drone's right, roll and pitch ignored.
-    """
+    """Returns where a target appears in a downward camera's image, or None if it's out of view."""
     h = pose.position.alt
     if h <= 0:
         return None

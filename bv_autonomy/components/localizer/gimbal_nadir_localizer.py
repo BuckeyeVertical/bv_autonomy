@@ -22,11 +22,7 @@ class GimbalNadirLocalizer(Localizer):
     """
 
     def __init__(self, mount_xyz: tuple[float, float, float] = DEFAULT_MOUNT_XYZ):
-        """
-        Args:
-            mount_xyz: Camera mount as extrinsic x, y, z Euler angles in radians,
-                from the camera frame (z along the optical axis) to the drone's level body frame.
-        """
+        """Sets up a localizer for a camera mounted at the given angles."""
         self._mount = Rotation.from_euler("xyz", mount_xyz)
 
     def locate(self, detection: Detection) -> Waypoint | None:

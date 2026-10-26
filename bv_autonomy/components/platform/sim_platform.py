@@ -9,10 +9,7 @@ class SimPlatform(Platform):
     """bv_bevy's simulator: PX4 SITL and Bevy's camera. The simulated aircraft has no payload to drop."""
 
     def __init__(self, address: str = "udpout://127.0.0.1:14580"):
-        """
-        Args:
-            address: MAVSDK connection URL. The default talks to PX4's onboard link, which bv_bevy publishes.
-        """
+        """Sets up the simulator's drone, camera and payload."""
         self.drone = MavsdkDrone(address)
         self.camera = BevyCamera(self.drone)
         self.payload = FakePayload()

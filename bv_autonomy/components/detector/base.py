@@ -6,12 +6,12 @@ from bv_autonomy.types import Detection, Frame
 class Detector(ABC):
     @abstractmethod
     async def start(self) -> None:
-        """Load the model."""
+        """Loads the detection model."""
 
     @abstractmethod
     async def stop(self) -> None:
-        """Free the model, and the GPU memory on the Orin, before stitching."""
+        """Frees the model and the memory it uses."""
 
     @abstractmethod
     async def detect(self, frame: Frame) -> list[Detection]:
-        """Run detection on one frame. Thresholds come from the constructor."""
+        """Finds the objects in a frame and returns the ones above their confidence threshold."""

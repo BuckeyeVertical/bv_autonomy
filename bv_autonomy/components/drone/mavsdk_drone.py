@@ -35,11 +35,7 @@ class MavsdkDrone(Drone):
     """
 
     def __init__(self, address: str = "udpin://0.0.0.0:14540"):
-        """
-        Args:
-            address: MAVSDK connection URL. The default listens where PX4 sends to API programs,
-                which bv_bevy's SITL does; on the aircraft it's e.g. "serial:///dev/ttyTHS1:921600".
-        """
+        """Sets up a drone that talks to PX4 through MAVSDK at the given connection address."""
         self._address = address
         self._mavsdk: Mavsdk | None = None
         self._action: ActionAsync | None = None
@@ -60,7 +56,7 @@ class MavsdkDrone(Drone):
         self._velocity = None
 
     async def connect(self, timeout: float = 30.0) -> None:
-        """Connect, then wait until PX4 has a good position fix, a home position and telemetry."""
+        """Connects to PX4 and waits until it has a position fix, a home position and telemetry."""
         self._mavsdk = Mavsdk(Configuration.create_with_component_type(ComponentType.GROUND_STATION))
         await self._mavsdk.add_any_connection(self._address)
         system = await self._mavsdk.first_autopilot(timeout_s=timeout)
@@ -143,7 +139,7 @@ class MavsdkDrone(Drone):
             on_progress(len(items))
 
     async def hold(self) -> None:
-        """Switch to Hold and finish once the drone has braked to a stop."""
+        """Switches PX4 to hold and waits for the drone to come to a stop."""
         await self._command(self._action.hold, lambda: self._flight_mode == FlightMode.HOLD, "hold")
         await self._wait(lambda: self._ground_speed() < 0.3, 15, "the drone to stop")
 
@@ -201,10 +197,7 @@ class MavsdkDrone(Drone):
         return self._in_air
 
     async def _command(self, send, accepted, name: str, always_send: bool = False) -> None:
-        """Send until telemetry shows it took effect, whether or not PX4's acknowledgment arrives.
-
-        A command whose effect is already showing isn't sent, unless always_send (the first time).
-        """
+        """Sends a command until telemetry shows it took effect, retrying when PX4 doesn't respond."""
         error = None
         for attempt in range(_RETRIES):
             if accepted() and not (always_send and attempt == 0):
@@ -233,7 +226,9 @@ class MavsdkDrone(Drone):
         await self._command(start, started, "start the mission", always_send=True)
 
     async def _report_progress(self, total: int, on_progress: Callable[[int], None]) -> None:
-        """Call on_progress with the number of points reached each time PX4's mission item moves on."""
+        """Calls on_progress with the number of points reached each time the mission moves on to the next
+        point.
+        """
         reported = None
         while True:
             progress = self._mission_progress
@@ -243,14 +238,8 @@ class MavsdkDrone(Drone):
             await asyncio.sleep(0.1)
 
     async def _wait_for_progress(self, done, remaining, modes: set[FlightMode], what: str) -> None:
-        """Wait for PX4's flight in one of modes to be done, however long it takes while it's making progress.
-
-        remaining() is how far the drone still is from its current goal, in meters. Progress is a new
-        mission item, or getting _CLOSER_M closer to the goal than ever before. Measuring against the
-        closest approach, not the last position, keeps GPS noise and drift from looking like progress.
-
-        Raises if PX4 leaves those modes (a pilot, failsafe or other program took over), or if the
-        flight makes no progress for _STALL_S.
+        """Waits for a flight to finish for as long as it keeps making progress. Raises if PX4 leaves the
+        expected flight modes or the drone stops getting closer to its goal.
         """
         last_item = self._mission_progress.current if self._mission_progress else None
         closest = remaining()

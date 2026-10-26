@@ -70,7 +70,9 @@ class MissionState(base.MissionState):
 
     @classmethod
     def new(cls, site: Site, intrinsics: Intrinsics) -> "MissionState":
-        """A fresh flight, with the scan planned for a camera with these intrinsics."""
+        """Creates the state for a new flight, with the full lap route and a scan planned for the given
+        camera.
+        """
 
         planner = SPathPlanner(intrinsics, SCAN_ALT, SCAN_OVERLAP)
         return cls(
@@ -110,13 +112,13 @@ class Suas2026(Mission):
         await self.scan(self.state.scan_route, TRANSIT_SPEED, SCAN_SPEED, SCAN_TOLERANCE)
 
     async def on_abort(self):
-        """Stop where the drone is, so the operator can take over or the mission can resume from here."""
+        """Holds the drone where it is so the operator can take over or the mission can resume."""
         self.gcs.report("mission_state", {"state": "aborted"})
         if self.drone.in_air():
             await self.drone.hold()
 
     async def connect(self, resuming: bool = False):
-        """Connect to the drone, start the camera, detector and GCS, then refuse to start unless it's safe to."""
+        """Connects to the drone, starts the camera, detector and GCS, and checks that it's safe to start."""
         await self.drone.connect()
         await self.camera.start()
         await self.detector.start()
@@ -124,7 +126,7 @@ class Suas2026(Mission):
         self.preflight_checks(resuming)
 
     def preflight_checks(self, resuming: bool = False):
-        """Raise if the drone isn't ready to start the mission. A resumed mission may start in the air."""
+        """Raises if the drone isn't ready to start the mission."""
         if not resuming:
             if self.drone.in_air():
                 raise RuntimeError("drone is already flying; not starting the mission")
@@ -134,7 +136,7 @@ class Suas2026(Mission):
             raise RuntimeError(f"battery at {self.drone.battery():.0%}; need at least {MIN_BATTERY:.0%}")
 
     async def takeoff(self, alt: float):
-        """Arm and climb to alt meters above the ground, unless already flying."""
+        """Arms and takes off to the given altitude."""
         if self.drone.in_air():
             return
         self.gcs.report("mission_state", {"state": "takeoff"})
@@ -142,7 +144,7 @@ class Suas2026(Mission):
         await self.drone.takeoff(alt)
 
     async def laps(self, route: WaypointSequence, speed: float, tolerance: float):
-        """Fly what's left of the lap route as one mission, or stop where it is if the operator ends laps."""
+        """Flies the lap route, stopping early if the operator ends laps."""
         if not route:
             return
         self.gcs.report("mission_state", {"state": "lap"})
@@ -170,7 +172,7 @@ class Suas2026(Mission):
             await self.drone.hold()
 
     async def scan(self, route: WaypointSequence, transit_speed: float, speed: float, tolerance: float):
-        """Fly what's left of the scan route, stopping to check each target found and deliver to it if approved."""
+        """Flies the scan route, checking each target found and delivering to the approved ones."""
         await self.deliver_approved()
         while route:
             target = await self.scan_rows(route, transit_speed, speed, tolerance)
@@ -182,7 +184,7 @@ class Suas2026(Mission):
 
     async def scan_rows(self, route: WaypointSequence, transit_speed: float, speed: float,
                         tolerance: float) -> Sighting | None:
-        """Transit to the route's first point and fly the rows, watching. Returns a target if one is found first."""
+        """Flies the scan rows while watching the camera, and returns a target if one is found."""
         self.gcs.report("mission_state", {"state": "scan"})
         await self.drone.goto(route[0], transit_speed, tolerance)
 
@@ -205,7 +207,7 @@ class Suas2026(Mission):
         return None
 
     async def watch(self) -> Sighting:
-        """Show each new frame on the dashboard, offer it to the map, and return the first target confirmed."""
+        """Sends each camera frame to the dashboard and the map, and returns the first target confirmed."""
         self.window.clear()
         while True:
             frame = await self.camera.latest(timeout=1.0)
@@ -225,7 +227,7 @@ class Suas2026(Mission):
                 return confirmed
 
     async def check_target(self, target: Sighting):
-        """Hold, find the target again from the stopped drone, and ask the operator whether it's real."""
+        """Stops over a target, finds it again, and asks the operator whether it's real."""
         self.gcs.report("mission_state", {"state": "localize"})
         await self.drone.hold()
         found = await self.locate_again(target)
@@ -253,7 +255,7 @@ class Suas2026(Mission):
         self.state.save()
 
     async def deliver_approved(self):
-        """Fly to each approved target, drop its payload over it, and mark it delivered."""
+        """Delivers a payload to each approved target."""
         for target in list(self.state.targets):
             self.gcs.report("mission_state", {"state": "deliver"})
             above = Waypoint(target.position.lat, target.position.lon, SCAN_ALT)
@@ -266,7 +268,9 @@ class Suas2026(Mission):
             self.state.save()
 
     async def locate_again(self, target: Sighting) -> tuple[Detection, Waypoint] | None:
-        """The target's detection in a fresh frame and its position, nearest where it was confirmed."""
+        """Finds the target again in fresh frames and returns its detection and position, or None if it isn't
+        seen.
+        """
         for _ in range(LOCATE_TRIES):
             frame = await self.camera.latest(timeout=1.0)
             if frame is not None:
