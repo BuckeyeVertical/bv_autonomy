@@ -67,6 +67,7 @@ class MissionState(base.MissionState):
     targets: list[Sighting] = field(default_factory=list)
     delivered: list[Sighting] = field(default_factory=list)
     rejected: list[Sighting] = field(default_factory=list)
+    returning: bool = False
 
     @classmethod
     def new(cls, site: Site, intrinsics: Intrinsics) -> "MissionState":
@@ -88,6 +89,7 @@ class MissionState(base.MissionState):
             targets=[Sighting(s["label"], Waypoint(**s["position"])) for s in data["targets"]],
             delivered=[Sighting(s["label"], Waypoint(**s["position"])) for s in data["delivered"]],
             rejected=[Sighting(s["label"], Waypoint(**s["position"])) for s in data["rejected"]],
+            returning=data["returning"],
         )
 
 
@@ -107,10 +109,31 @@ class Suas2026(Mission):
         self.window = ConfirmationWindow(CLASS_IDS, CONFIRM_HITS, CONFIRM_FRAMES, CONFIRM_RADIUS_M)
 
     async def run(self):
-        await self.takeoff(self.site.laps[0].alt)
-        await self.laps(self.state.lap_route, LAP_SPEED, LAP_TOLERANCE)
-        await self.scan(self.state.scan_route, TRANSIT_SPEED, SCAN_SPEED, SCAN_TOLERANCE)
+        async def fly():
+            await self.takeoff(self.site.laps[0].alt)
+            await self.laps(self.state.lap_route, LAP_SPEED, LAP_TOLERANCE)
+            await self.scan(self.state.scan_route, TRANSIT_SPEED, SCAN_SPEED, SCAN_TOLERANCE)
+
+        if not self.state.returning:
+            await self.until_called_home(fly())
         await self.return_home()
+
+    async def until_called_home(self, flight):
+        """Runs a flight, stopping it if the operator presses return home."""
+        called_home = self.gcs.signal("return_home")
+        called_home.clear()
+        flying = asyncio.create_task(flight)
+        pressed = asyncio.create_task(called_home.wait())
+        try:
+            done, _ = await asyncio.wait({flying, pressed}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            flying.cancel()
+            pressed.cancel()
+            await asyncio.wait({flying, pressed})
+        if flying in done:
+            flying.result()
+        else:
+            log.info("operator pressed return home")
 
     async def on_abort(self):
         """Holds the drone where it is so the operator can take over or the mission can resume."""
@@ -271,6 +294,8 @@ class Suas2026(Mission):
 
     async def return_home(self):
         """Flies back to the home position and lands there, building the map from the scan on the way."""
+        self.state.returning = True
+        self.state.save()
         self.gcs.report("mission_state", {"state": "return"})
         await self.detector.stop()
         stitching = asyncio.create_task(self.stitcher.stitch())

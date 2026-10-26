@@ -91,7 +91,7 @@ async def test_release_drops_on_schedule_and_ends_at_rest():
     assert round(PLATE.value(2050), 4) in plates
     assert drone.last(2) == round(PLATE.value(HOLD), 4) and drone.last(1) == round(CLAMP.value(OPEN), 4)
     sets = [s for _, s, _ in drone.commands]
-    assert sets == [2, 1] * (len(sets) // 2)               # both servos on every change
+    assert sets == [2, 1] * (len(sets) // 2)
 
 
 async def test_unconfirmed_commands_are_retried_and_the_drop_still_ends_on_time(monkeypatch):

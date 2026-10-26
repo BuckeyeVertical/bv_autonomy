@@ -22,7 +22,7 @@ async def test_fresh_run_flies_full_route_and_reports_progress(make_mission, dro
     await asyncio.wait_for(mission.start(), 2)
     assert drone.takeoffs == [expected[0].alt]
     assert drone.reached == expected + scan
-    assert mission.state == MissionState.load() == MissionState(lap_route=[], scan_route=[])
+    assert mission.state == MissionState.load() == MissionState(lap_route=[], scan_route=[], returning=True)
     expected_progress = []
     for i in range(len(expected) + 1):
         expected_progress.append({
@@ -54,7 +54,7 @@ async def test_cancel_and_resume_in_air_has_no_repeats_or_gaps(make_mission, dro
     await asyncio.wait_for(resumed.start(), 2)
     assert drone.takeoffs == [laps[0].alt]
     assert drone.reached == laps + scan
-    assert MissionState.load() == MissionState(lap_route=[], scan_route=[])
+    assert MissionState.load() == MissionState(lap_route=[], scan_route=[], returning=True)
 
 
 async def test_ground_resume_takes_off_and_flies_only_remaining_points(make_mission, drone, site):
@@ -92,7 +92,7 @@ async def test_state_is_saved_after_each_reached_point(make_mission, drone, gcs,
     assert not task.done()
     assert MissionState.load().lap_route == full[2:]
     await asyncio.wait_for(task, 2)
-    assert snapshots == [full[i:] for i in range(len(full) + 1)]
+    assert snapshots == [full[i:] for i in range(len(full) + 1)] + [[]]
 
 
 async def test_end_laps_holds_and_saves_empty_route(make_mission, drone, gcs, site):

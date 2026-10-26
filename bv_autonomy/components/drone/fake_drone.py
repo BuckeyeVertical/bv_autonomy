@@ -84,6 +84,8 @@ class FakeDrone(Drone):
         self._armed = False
 
     async def return_home(self) -> None:
+        if not self.in_air():
+            return
         cruise = max(self._position.alt, 1.0)
         await self._fly_to(Waypoint(self._home.lat, self._home.lon, cruise), self._default_speed, 0.1)
         await self.land()
