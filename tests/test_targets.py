@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -29,6 +30,8 @@ def slow_drone(drone):
 
 
 async def fly(mission):
+    """Runs the mission up to the end of the scan."""
+    mission.return_home = AsyncMock()
     await mission.camera.start()
     await mission.detector.start()
     await asyncio.wait_for(mission.start(), 10)

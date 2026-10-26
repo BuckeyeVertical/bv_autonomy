@@ -110,6 +110,7 @@ class Suas2026(Mission):
         await self.takeoff(self.site.laps[0].alt)
         await self.laps(self.state.lap_route, LAP_SPEED, LAP_TOLERANCE)
         await self.scan(self.state.scan_route, TRANSIT_SPEED, SCAN_SPEED, SCAN_TOLERANCE)
+        await self.return_home()
 
     async def on_abort(self):
         """Holds the drone where it is so the operator can take over or the mission can resume."""
@@ -266,6 +267,11 @@ class Suas2026(Mission):
             self.state.targets.remove(target)
             self.state.delivered.append(target)
             self.state.save()
+
+    async def return_home(self):
+        """Flies back to the home position and lands there."""
+        self.gcs.report("mission_state", {"state": "return"})
+        await self.drone.return_home()
 
     async def locate_again(self, target: Sighting) -> tuple[Detection, Waypoint] | None:
         """Finds the target again in fresh frames and returns its detection and position, or None if it isn't

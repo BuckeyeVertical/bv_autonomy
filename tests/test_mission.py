@@ -104,7 +104,6 @@ async def test_end_laps_holds_and_saves_empty_route(make_mission, drone, gcs, si
     await asyncio.wait_for(task, 2)
     assert 0 < len(drone.reached) < len(full)
     assert drone.holds == 1
-    assert drone._target is None
     assert MissionState.load().lap_route == []
 
 
@@ -237,3 +236,24 @@ async def test_main_saves_selected_state_before_connect(site, drone, monkeypatch
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
     assert calls == ["constructed", "connected", "started"]
+
+
+async def test_mission_ends_by_returning_home_and_landing(make_mission, drone, gcs):
+    mission = make_mission()
+    await asyncio.wait_for(mission.start(), 2)
+    assert gcs.reports[-1] == ("mission_state", {"state": "return"})
+    assert not drone.in_air()
+    assert not drone.is_armed()
+    home = drone.home()
+    assert abs(drone.position().lat - home.lat) < 1e-6 and abs(drone.position().lon - home.lon) < 1e-6
+
+
+async def test_resume_after_everything_is_flown_just_returns_home(make_mission, drone, gcs):
+    await drone.arm()
+    await drone.takeoff(20)
+    mission = make_mission(MissionState(lap_route=WaypointSequence(), scan_route=WaypointSequence()))
+    mission.preflight_checks(resuming=True)
+    await asyncio.wait_for(mission.start(), 2)
+    assert drone.takeoffs == [20]
+    assert drone.reached == []
+    assert not drone.in_air()
