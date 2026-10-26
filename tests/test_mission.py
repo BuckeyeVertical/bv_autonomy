@@ -189,7 +189,7 @@ def test_preflight_accepts_exact_minimum_battery(make_mission, drone, monkeypatc
     make_mission().preflight_checks()
 
 
-async def test_connect_checks_preflight_after_drone_and_gcs_start(make_mission, drone, gcs, monkeypatch):
+async def test_connect_readies_the_payload_before_preflight(make_mission, drone, gcs, monkeypatch):
     mission = make_mission()
     calls = []
 
@@ -199,11 +199,15 @@ async def test_connect_checks_preflight_after_drone_and_gcs_start(make_mission, 
     async def start():
         calls.append("gcs")
 
+    async def ready_payload():
+        calls.append("payload")
+
     monkeypatch.setattr(drone, "connect", connect)
+    monkeypatch.setattr(mission.payload, "start", ready_payload)
     monkeypatch.setattr(gcs, "start", start)
     monkeypatch.setattr(mission, "preflight_checks", lambda resuming: calls.append(resuming))
     await mission.connect(resuming=True)
-    assert calls == ["drone", "gcs", True]
+    assert calls == ["drone", "payload", "gcs", True]
 
 
 @pytest.mark.parametrize("resume", [False, True])

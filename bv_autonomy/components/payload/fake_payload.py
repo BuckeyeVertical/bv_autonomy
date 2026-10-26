@@ -15,6 +15,9 @@ class FakePayload(Payload):
         self._can_pick_up = can_pick_up
         self._action_s = action_s
 
+    async def start(self) -> None:
+        self.log.append((time.monotonic(), "start", ""))
+
     async def release(self, slot: str) -> None:
         if self.held.get(slot, 0) <= 0:
             raise RuntimeError(f"nothing left to release in {slot!r}")

@@ -138,6 +138,10 @@ class MavsdkDrone(Drone):
         if on_progress:
             on_progress(len(items))
 
+    async def set_actuator(self, actuator_set: int, value: float) -> None:
+        """Sets the outputs PX4 assigns to an actuator set to a value between minus one and one."""
+        await self._action.set_actuator(actuator_set, value)
+
     async def hold(self) -> None:
         """Switches PX4 to hold and waits for the drone to come to a stop."""
         await self._command(self._action.hold, lambda: self._flight_mode == FlightMode.HOLD, "hold")

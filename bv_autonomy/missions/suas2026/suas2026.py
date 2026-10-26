@@ -119,8 +119,9 @@ class Suas2026(Mission):
             await self.drone.hold()
 
     async def connect(self, resuming: bool = False):
-        """Connects to the drone, starts the camera, detector and GCS, and checks that it's safe to start."""
+        """Connects to the drone, readies the payload, camera, detector and GCS, and checks that it's safe to start."""
         await self.drone.connect()
+        await self.payload.start()
         await self.camera.start()
         await self.detector.start()
         await self.gcs.start()

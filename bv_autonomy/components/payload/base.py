@@ -3,6 +3,10 @@ from abc import ABC, abstractmethod
 
 class Payload(ABC):
     @abstractmethod
+    async def start(self) -> None:
+        """Puts the payload in its resting position, holding everything, before the drone arms."""
+
+    @abstractmethod
     async def release(self, slot: str) -> None:
         """Releases the payload held in the given slot."""
 
