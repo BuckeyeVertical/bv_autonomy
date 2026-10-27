@@ -8,7 +8,6 @@ Make a folder for the team's repos and clone all three into it:
 mkdir BuckeyeVertical
 cd BuckeyeVertical
 git clone https://github.com/BuckeyeVertical/bv_autonomy.git
-git clone https://github.com/BuckeyeVertical/bv_bevy.git
 git clone https://github.com/BuckeyeVertical/bv_gcs.git
 ```
 
@@ -20,18 +19,21 @@ uv venv --python 3.12
 uv pip install -e ".[opencv,ltdetr,localizer,mavsdk,stitcher,gcs,terrain]"
 ```
 
-### bv_bevy
+### bv_sim
 
-The simulator: PX4 and the 3D world the drone's camera sees. Follow the setup in
-[bv_bevy's README](https://github.com/BuckeyeVertical/bv_bevy), then run the forest world
-from the `bv_bevy` folder, in two terminals, PX4 first:
-
+##### download sim executable depending on your os:
+#### mac/linux:
 ```bash
-./px4.sh --prebuilt forest
+curl -fsSL https://raw.githubusercontent.com/BuckeyeVertical/bv_sim/main/install.sh | bash
+```
+#### windows:
+```bash
+irm https://raw.githubusercontent.com/BuckeyeVertical/bv_sim/main/install.ps1 | iex
 ```
 
+run sim from a new terminal with
 ```bash
-cargo run -- forest
+bv-sim run suas_2026
 ```
 
 ### bv_gcs
