@@ -16,7 +16,7 @@ git clone https://github.com/BuckeyeVertical/bv_gcs.git
 
 ```bash
 cd bv_autonomy
-uv venv --python 3.12
+uv venv --python 3.10
 uv pip install -e ".[opencv,ltdetr,localizer,mavsdk,stitcher,gcs,terrain]"
 ```
 
