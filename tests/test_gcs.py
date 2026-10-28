@@ -9,11 +9,13 @@ from bv_autonomy.types import ApprovalRequest, Waypoint
 
 
 async def receive_type(ws, kind):
-    async with asyncio.timeout(2):
+    async def until_kind():
         while True:
             message = await ws.receive_json()
             if message["type"] == kind:
                 return message
+
+    return await asyncio.wait_for(until_kind(), 2)
 
 
 @pytest_asyncio.fixture
@@ -186,9 +188,11 @@ async def test_stop_resolves_unbounded_approval_and_closes_connection(websocket,
     await asyncio.wait_for(gcs.stop(), 2)
     assert await asyncio.wait_for(task, 2) is None
     assert gcs._pending is None
-    async with asyncio.timeout(2):
+    async def until_closed():
         while not ws.closed:
             await ws.receive()
+
+    await asyncio.wait_for(until_closed(), 2)
 
 
 async def test_second_decision_in_same_event_loop_turn_is_refused(websocket, approval):

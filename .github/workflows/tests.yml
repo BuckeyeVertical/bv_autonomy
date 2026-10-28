@@ -6,6 +6,9 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,7 +28,7 @@ jobs:
           exit $found
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - run: pip install ".[dev,gcs,mavsdk,localizer,opencv,stitcher,terrain]"
       - run: python -m pytest

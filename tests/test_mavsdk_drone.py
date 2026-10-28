@@ -209,9 +209,11 @@ async def test_report_progress_ignores_mismatched_total_and_duplicate_updates(ma
 
     clock.step = telemetry
     reporter = asyncio.create_task(mavdrone._report_progress(3, progress.append))
-    async with asyncio.timeout(2):
+    async def until_half_a_second():
         while clock.now < 0.5:
             await asyncio.sleep(0)
+
+    await asyncio.wait_for(until_half_a_second(), 2)
     reporter.cancel()
     with pytest.raises(asyncio.CancelledError):
         await reporter

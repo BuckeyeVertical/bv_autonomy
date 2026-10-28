@@ -9,9 +9,11 @@ from bv_autonomy.types import Waypoint, WaypointSequence
 
 async def wait_for(condition):
     """Waits until the condition holds."""
-    async with asyncio.timeout(5):
+    async def until_true():
         while not condition():
             await asyncio.sleep(0.005)
+
+    await asyncio.wait_for(until_true(), 5)
 
 
 async def test_return_home_during_laps_skips_the_rest_and_lands(make_mission, drone, gcs):

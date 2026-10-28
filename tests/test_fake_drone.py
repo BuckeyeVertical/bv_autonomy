@@ -51,9 +51,11 @@ async def test_hold_stops_partway_and_fly_mission_returns(airborne):
     far = Waypoint(start.lat + 1, start.lon, start.alt)
     progress = []
     task = asyncio.create_task(airborne.fly_mission(WaypointSequence([far]), on_progress=progress.append))
-    async with asyncio.timeout(2):
+    async def until_moving():
         while airborne.position() == start:
             await asyncio.sleep(0.005)
+
+    await asyncio.wait_for(until_moving(), 2)
     await airborne.hold()
     stopped = airborne.position()
     await asyncio.wait_for(task, 2)

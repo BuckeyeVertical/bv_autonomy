@@ -42,10 +42,12 @@ class RecordingGcs(NullGcs):
         return [data for event, data in self.reports if event == "path_progress"]
 
     async def wait_reached(self, reached):
-        async with asyncio.timeout(2):
+        async def until_reached():
             while not any(p["completed"] >= reached for p in self.progress):
                 self.changed.clear()
                 await self.changed.wait()
+
+        await asyncio.wait_for(until_reached(), 2)
 
 
 class RecordingDrone(FakeDrone):

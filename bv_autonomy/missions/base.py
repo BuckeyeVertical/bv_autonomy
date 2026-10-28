@@ -5,7 +5,7 @@ import sys
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import ClassVar, Self
+from typing import ClassVar
 
 
 log = logging.getLogger(__name__)
@@ -89,12 +89,12 @@ class MissionState(ABC):
         os.replace(tmp, self.path)
 
     @classmethod
-    def load(cls) -> Self:
+    def load(cls) -> "MissionState":
         return cls.from_dict(json.loads(cls.path.read_text()))
 
     @classmethod
     @abstractmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> "MissionState":
         """Rebuilds a state from its saved form."""
 
 

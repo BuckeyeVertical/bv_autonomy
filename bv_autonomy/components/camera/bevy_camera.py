@@ -48,9 +48,12 @@ class BevyCamera(Camera):
 
     async def latest(self, timeout: float | None = None) -> Frame | None:
         if not self._new_frame.is_set():
+            waiting = asyncio.ensure_future(self._new_frame.wait())
             try:
-                await asyncio.wait_for(self._new_frame.wait(), timeout)
-            except TimeoutError:
+                await asyncio.wait({waiting}, timeout=timeout)
+            finally:
+                waiting.cancel()
+            if not self._new_frame.is_set():
                 return None
         self._new_frame.clear()
         jpeg, header, pose, received = self._newest

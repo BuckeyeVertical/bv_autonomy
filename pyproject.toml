@@ -1,7 +1,7 @@
 [project]
 name = "bv_autonomy"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = ["numpy"]
 
 [project.optional-dependencies]
@@ -21,7 +21,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra -p no:cacheprovider"
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

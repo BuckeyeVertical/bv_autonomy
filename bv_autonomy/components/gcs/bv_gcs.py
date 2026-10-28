@@ -138,10 +138,11 @@ class BvGcs(Gcs):
                  request.position.lat, request.position.lon, timeout or 0.0)
         self._broadcast({"type": "pending", "pending": self._pending_for_send()})
         try:
-            return await asyncio.wait_for(asyncio.shield(answer), timeout or None)
-        except TimeoutError:
-            log.debug("no answer for %s within %.0f s", detection_id, timeout)
-            return None
+            done, _ = await asyncio.wait({answer}, timeout=timeout or None)
+            if not done:
+                log.debug("no answer for %s within %.0f s", detection_id, timeout)
+                return None
+            return answer.result()
         finally:
             if self._answer is answer:
                 self._answer = None
