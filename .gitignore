@@ -10,3 +10,4 @@ build/
 !/terrain_maps/.gitkeep
 /output/
 bv_autonomy/missions/*/state/
+/uv.lock

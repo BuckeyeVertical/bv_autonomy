@@ -3,6 +3,10 @@
 For a Jetson Orin Nano on JetPack 6. The venv uses the system Python 3.10 so it keeps
 JetPack's OpenCV, which can read the camera through GStreamer.
 
+Don't run `uv sync` or plain `uv run` here. They make the venv match a `uv.lock`, which
+would have PyPI's torch, OpenCV and numpy 2 instead of the Jetson builds, and `uv sync`
+also removes every extra. Run things with `.venv/bin/python` or `uv run --no-sync`.
+
 ## 1. Install uv and clone
 
 ```bash
@@ -13,41 +17,23 @@ git clone https://github.com/BuckeyeVertical/bv_autonomy.git
 cd bv_autonomy
 ```
 
-## 2. Make the venv
+## 2. Run the setup script
 
 ```bash
-uv venv --python /usr/bin/python3 --system-site-packages
-source .venv/bin/activate
+./scripts/setup_jetson.sh
 ```
 
-## 3. Install NVIDIA's torch
+It makes the venv, installs NVIDIA's torch and bv_autonomy with its extras, swaps pip's
+OpenCV for NVIDIA's (pip's has no GStreamer), adds the cuDSS library NVIDIA's torch needs,
+and checks that torch has CUDA and OpenCV has GStreamer. It ends by listing anything left
+to do by hand.
 
-Use the index for your JetPack version (`cat /etc/nv_tegra_release`). This one is JetPack 6.1 and 6.2:
+Rerun it after any `uv pip install` into this venv. Installing the `ltdetr` extra brings
+back pip's OpenCV, and reinstalling torch drops cuDSS. Rerunning is safe.
 
-```bash
-uv pip install torch torchvision --index-url https://pypi.jetson-ai-lab.io/jp6/cu126
-uv pip freeze | grep -E '^(torch|torchvision)==' > .venv/constraints.txt
-echo "numpy<2" >> .venv/constraints.txt
-```
+The torch index in the script is for JetPack 6.1 and 6.2 (`cat /etc/nv_tegra_release`).
 
-## 4. Install bv_autonomy
-
-Leave out the `opencv` extra:
-
-```bash
-uv pip install -e ".[ltdetr,localizer,mavsdk,stitcher,gcs,terrain]" -c .venv/constraints.txt
-```
-
-## 5. Check
-
-```bash
-python -c "import torch; print(torch.cuda.is_available())"
-python -c "import cv2; print('GStreamer: YES' in cv2.getBuildInformation())"
-```
-
-Both should print True.
-
-## 6. Serial ports
+## 3. Serial ports
 
 ```bash
 sudo usermod -aG dialout $USER
@@ -55,7 +41,7 @@ sudo usermod -aG dialout $USER
 
 Log out and back in.
 
-## 7. Copy files from a laptop
+## 4. Copy files from a laptop
 
 The weights, terrain maps and dashboard aren't in git. From the laptop's `BuckeyeVertical` folder:
 
