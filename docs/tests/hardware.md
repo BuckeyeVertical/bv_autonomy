@@ -22,5 +22,5 @@ Run one check by naming its file:
 - `--no-show`: don't open a window.
 - `-s`: print what each check found, even when it passes.
 
-Images are saved to `output/<time>_hardware_tests/`. Without a display, such as over SSH,
-they're only saved.
+Images are saved to `output/hardware_tests/`, and the previous run's are moved to
+`output/hardware_tests/old/`. Without a display, such as over SSH, they're only saved.

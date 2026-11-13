@@ -22,6 +22,7 @@ GLACIER_DEM = TERRAIN_MAPS_DIR / "glacier.tif"
 
 OUTPUT_DIR = REPO_DIR / "output"
 SUAS2026_OUTPUT = OUTPUT_DIR / "suas2026"
+HARDWARE_TESTS_OUTPUT = OUTPUT_DIR / "hardware_tests"
 
 SUAS2026_STATE = REPO_DIR / "bv_autonomy" / "missions" / "suas2026" / "state" / "mission_state.json"
 

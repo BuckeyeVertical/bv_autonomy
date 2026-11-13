@@ -60,14 +60,15 @@ async def detector():
 
 @pytest.fixture(scope="session")
 def output_dir():
-    directory = paths.new_run_dir("hardware_tests")
-    directory.mkdir(parents=True)
-    return directory
+    """The hardware tests' output folder, with the last run's images moved into its old folder."""
+    paths.archive_outputs(paths.HARDWARE_TESTS_OUTPUT)
+    paths.HARDWARE_TESTS_OUTPUT.mkdir(parents=True, exist_ok=True)
+    return paths.HARDWARE_TESTS_OUTPUT
 
 
 @pytest.fixture
 def show(pytestconfig, output_dir):
-    """Saves an image to this run's output folder, then shows it in a window until a key is pressed or the
+    """Saves an image to output/hardware_tests, then shows it in a window until a key is pressed or the
     window is closed. With no display, such as over SSH, it only saves it.
     """
 
