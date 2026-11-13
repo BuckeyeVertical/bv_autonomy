@@ -1,4 +1,4 @@
-"""Checks of the real components, run by hand and never in CI: pytest hardware_tests -s"""
+"""Checks of the real components, run by hand and never in CI: pytest tests/hardware -s"""
 
 import os
 import sys

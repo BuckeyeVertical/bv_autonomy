@@ -52,7 +52,7 @@ Before a flight, check the Pixhawk, camera and detector on the competition drone
 shows the camera frame or detections in a window, also saved under `output/`:
 
 ```bash
-pytest hardware_tests -s
-pytest hardware_tests/test_camera.py -s
-pytest hardware_tests/test_detector.py --image photo.jpg -s
+pytest tests/hardware -s
+pytest tests/hardware/test_camera_hardware.py -s
+pytest tests/hardware/test_detector_hardware.py --image photo.jpg -s
 ```
