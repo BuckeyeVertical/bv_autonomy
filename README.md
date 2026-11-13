@@ -44,3 +44,15 @@ cd bv_gcs/web
 npm ci
 npm run build
 ```
+
+## Hardware checks
+
+Before a flight, check the Pixhawk, camera and detector on the aircraft (or on the simulator
+with `--platform sim`). Each check prints what it found and shows the camera frame or
+detections in a window, also saved under `output/`:
+
+```bash
+pytest hardware_tests -s
+pytest hardware_tests/test_camera.py -s
+pytest hardware_tests/test_detector.py --image photo.jpg -s
+```
