@@ -25,6 +25,8 @@ From `bv_autonomy`:
 uv run python -m bv_autonomy.missions.suas2026
 ```
 
+Type `y` when it asks `Start the mission? [y/N]`.
+
 Open the dashboard at http://localhost:8765 to follow the flight and approve targets.
 
 ## Stopping and resuming

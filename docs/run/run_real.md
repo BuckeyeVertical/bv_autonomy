@@ -48,6 +48,9 @@ On the Jetson:
 .venv/bin/python -m bv_autonomy.missions.suas2026
 ```
 
+Once the preflight checks pass, it asks `Start the mission? [y/N]`. Type `y` to arm and take off;
+anything else exits without arming.
+
 Open the dashboard at `http://<jetson-ip>:8765` to follow the flight and approve targets.
 
 ## Stopping and resuming

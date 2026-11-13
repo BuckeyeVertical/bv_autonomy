@@ -12,7 +12,8 @@ from bv_autonomy.types import WaypointSequence
 
 
 def fly_in_main(entry, monkeypatch, site, platform):
-    """Makes main fly this site and platform, whichever site and platform it's set to."""
+    """Makes main fly this site and platform, whichever site and platform it's set to, and answers its start prompt."""
+    monkeypatch.setattr("builtins.input", lambda prompt="": "y")
     for name, value in vars(entry.sites).items():
         if isinstance(value, Site):
             monkeypatch.setattr(entry.sites, name, site)
@@ -336,6 +337,32 @@ async def test_main_disconnects_even_when_the_mission_fails(site, drone, monkeyp
     monkeypatch.setattr(entry, "Suas2026", FailingMission)
     with pytest.raises(RuntimeError):
         await entry.main(resume=False)
+    assert calls == ["connected", "disconnected"]
+
+
+@pytest.mark.parametrize("answer", ["", "n", "yes please"])
+async def test_main_only_starts_when_the_operator_answers_y(site, drone, monkeypatch, answer):
+    from bv_autonomy.missions.suas2026 import __main__ as entry
+
+    calls = []
+
+    class StandInMission:
+        def __init__(self, selected_site, state, platform):
+            pass
+
+        async def connect(self, resuming):
+            calls.append("connected")
+
+        async def start(self):
+            calls.append("started")
+
+        async def disconnect(self):
+            calls.append("disconnected")
+
+    fly_in_main(entry, monkeypatch, site, FakePlatform(drone))
+    monkeypatch.setattr("builtins.input", lambda prompt="": answer)
+    monkeypatch.setattr(entry, "Suas2026", StandInMission)
+    await entry.main(resume=False)
     assert calls == ["connected", "disconnected"]
 
 
