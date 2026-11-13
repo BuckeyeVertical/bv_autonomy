@@ -16,9 +16,11 @@ git clone https://github.com/BuckeyeVertical/bv_gcs.git
 
 ```bash
 cd bv_autonomy
-uv venv --python 3.10
-uv pip install -e ".[opencv,ltdetr,localizer,mavsdk,stitcher,gcs,terrain]"
+uv sync --all-extras
 ```
+
+Run things with `uv run`, e.g. `uv run pytest`. On the Jetson, follow
+[Jetson setup](docs/setup/jetson.md) instead.
 
 ### bv_bevy
 
@@ -43,4 +45,16 @@ then build its frontend once:
 cd bv_gcs/web
 npm ci
 npm run build
+```
+
+## Hardware checks
+
+Before a flight, check the Pixhawk, camera and detector on the competition drone, or pass
+`--platform x650` or `--platform sim` for the simulator. Each check prints what it found and
+shows the camera frame or detections in a window, also saved under `output/`:
+
+```bash
+uv run pytest tests/hardware -s
+uv run pytest tests/hardware/test_camera_hardware.py -s
+uv run pytest tests/hardware/test_detector_hardware.py --image photo.jpg -s
 ```

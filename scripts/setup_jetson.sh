@@ -48,6 +48,9 @@ CUDSS="$(find "$SITE/nvidia" -name 'libcudss.so.0' | head -1)"
 [ -n "$CUDSS" ] || fail "libcudss.so.0 not found after installing nvidia-cudss-cu12"
 ln -sf "$(realpath "$CUDSS")" "$SITE/torch/lib/libcudss.so.0"
 
+step "uv run without syncing"
+grep -q "UV_NO_SYNC=1" ~/.bashrc 2>/dev/null || echo "export UV_NO_SYNC=1" >> ~/.bashrc
+
 step "checks"
 "$PY" -c "import torch; assert torch.cuda.is_available(), 'torch has no CUDA'; print('torch', torch.__version__, 'on', torch.cuda.get_device_name(0))"
 "$PY" -c "import cv2; assert 'GStreamer: YES' in ' '.join(cv2.getBuildInformation().split()), 'OpenCV has no GStreamer'; print('OpenCV', cv2.__version__, 'with GStreamer')"

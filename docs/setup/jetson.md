@@ -3,9 +3,10 @@
 For a Jetson Orin Nano on JetPack 6. The venv uses the system Python 3.10 so it keeps
 JetPack's OpenCV, which can read the camera through GStreamer.
 
-Don't run `uv sync` or plain `uv run` here. They make the venv match a `uv.lock`, which
-would have PyPI's torch, OpenCV and numpy 2 instead of the Jetson builds, and `uv sync`
-also removes every extra. Run things with `.venv/bin/python` or `uv run --no-sync`.
+Don't run `uv sync` here. It makes the venv match a `uv.lock`, which would have PyPI's
+torch, OpenCV and numpy 2 instead of the Jetson builds, and removes every extra. `uv run`
+would sync too, upgrading numpy to 2, so the setup script sets `UV_NO_SYNC=1` in
+`~/.bashrc` to stop it. Change packages with `uv pip install`.
 
 ## 1. Install uv and clone
 

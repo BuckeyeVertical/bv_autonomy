@@ -19,7 +19,7 @@ from bv_autonomy.types import ApprovalRequest, Detection, Intrinsics, StitchProg
 
 log = logging.getLogger(__name__)
 
-MIN_BATTERY = 0.5
+MIN_BATTERY = 0.2
 
 LAP_ALT = 48.768
 SCAN_ALT = 48.768
@@ -28,11 +28,11 @@ SCAN_OVERLAP = 0.35
 SCAN_TOLERANCE = 1.0
 DELIVER_TOLERANCE = 1.0
 
-LAP_SPEED = 20.0
-TRANSIT_SPEED = 20.0
+LAP_SPEED = 10.0
+TRANSIT_SPEED = 10.0
 SCAN_SPEED = 3.0
 DELIVER_SPEED = 3.0
-RETURN_SPEED = 20.0
+RETURN_SPEED = 10.0
 
 CLASS_IDS = {"person": 0, "tent": 1}
 PAYLOAD_SLOTS = {"person": "bottle", "tent": "beacon"}

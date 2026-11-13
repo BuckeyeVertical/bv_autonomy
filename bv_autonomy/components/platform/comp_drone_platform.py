@@ -5,8 +5,8 @@ from bv_autonomy.components.payload import WinchPayload
 from bv_autonomy.components.platform.base import Platform
 
 
-class PhysicalPlatform(Platform):
-    """The aircraft, with PX4 over serial, the RX0 and the plate and clamp payload."""
+class CompDronePlatform(Platform):
+    """The competition aircraft, with PX4 over serial, the RX0 and the plate and clamp payload."""
 
     def __init__(self, address: str = "serial:///dev/ttyTHS1:921600"):
         """Sets up the aircraft's drone, camera and payload."""

@@ -11,9 +11,11 @@ Keep this file general and useful: only what agents need to write, test and debu
 
 # Testing
 
-Run Python with the repo's venv (`.venv/bin/python`, or `uv run`).
+On a laptop, set up with `uv sync --all-extras` and run Python with `uv run`. On the Jetson, never `uv sync`; use `.venv/bin/python` (see `docs/setup/jetson.md`).
 
-Tests: install `.[dev,gcs,mavsdk,localizer,opencv,stitcher,terrain]`, then run `.venv/bin/python -m pytest`.
+Tests: `uv run pytest`.
+
+Hardware checks (Pixhawk, camera, detector), run by hand, never in CI: `uv run pytest tests/hardware -s` (`--platform x650|sim` for the X650 or bv_bevy).
 
 Every component has a fake next to its real implementations (`FakeDrone`, `FakeCamera`,
 `FakeDetector`, `FakePayload`, `FakeStitcher`, `NullGcs`, `FakePlatform`). Use them to run mission logic on
