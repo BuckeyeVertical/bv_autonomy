@@ -6,6 +6,8 @@ import sys
 import cv2
 import pytest
 import pytest_asyncio
+from mavsdk.asyncio import ComponentType, Configuration, Mavsdk
+from mavsdk.asyncio.plugins.telemetry import TelemetryAsync
 
 from bv_autonomy import paths
 from bv_autonomy.components.detector import LtdetrDetector
@@ -31,11 +33,18 @@ def platform(pytestconfig):
 
 
 @pytest_asyncio.fixture
-async def drone(platform):
-    """The platform's drone, connected once PX4 has a position fix, a home position and telemetry."""
-    await platform.drone.connect()
-    yield platform.drone
-    await platform.drone.disconnect()
+async def telemetry(platform):
+    """PX4's telemetry from the platform's address, without waiting for a GPS fix like the mission does."""
+    mavsdk = Mavsdk(Configuration.create_with_component_type(ComponentType.GROUND_STATION))
+    await mavsdk.add_any_connection(platform.drone._address)
+    system = await mavsdk.first_autopilot(timeout_s=30.0)
+    if system is None:
+        mavsdk.destroy()
+        pytest.fail(f"no autopilot found at {platform.drone._address} within 30 s")
+    telemetry = TelemetryAsync(system)
+    yield telemetry
+    telemetry.destroy()
+    mavsdk.destroy()
 
 
 @pytest_asyncio.fixture

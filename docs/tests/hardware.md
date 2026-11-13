@@ -11,7 +11,7 @@ Run one check by naming its file:
 
 | File | Checks | Needs |
 | --- | --- | --- |
-| `test_pixhawk_hardware.py` | Connects and prints position, home, heading, battery and armed state. Never arms. | Pixhawk |
+| `test_pixhawk_hardware.py` | Connects and prints battery, attitude and flight mode, then waits up to 60 s for a 3D GPS fix. Never arms. | Pixhawk, GPS outdoors |
 | `test_camera_hardware.py` | Grabs a frame, checks its size and frame rate, and shows it. | Camera |
 | `test_detector_hardware.py` | Runs the mission's detector on one camera frame and shows the detections. | Camera, model weights |
 
