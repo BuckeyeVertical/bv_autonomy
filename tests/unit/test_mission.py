@@ -5,10 +5,20 @@ from unittest.mock import AsyncMock
 import pytest
 
 from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
-from bv_autonomy.components.platform import FakePlatform
-from bv_autonomy.missions.suas2026 import MissionState
+from bv_autonomy.components.platform import FakePlatform, Platform
+from bv_autonomy.missions.suas2026 import MissionState, Site
 from bv_autonomy.missions.suas2026.suas2026 import MIN_BATTERY
 from bv_autonomy.types import WaypointSequence
+
+
+def fly_in_main(entry, monkeypatch, site, platform):
+    """Makes main fly this site and platform, whichever site and platform it's set to."""
+    for name, value in vars(entry.sites).items():
+        if isinstance(value, Site):
+            monkeypatch.setattr(entry.sites, name, site)
+    for name, value in vars(entry).items():
+        if isinstance(value, type) and issubclass(value, Platform):
+            monkeypatch.setattr(entry, name, lambda: platform)
 
 
 def laps_only(site):
@@ -239,8 +249,7 @@ async def test_main_saves_selected_state_before_connect(site, drone, monkeypatch
         async def disconnect(self):
             calls.append("disconnected")
 
-    monkeypatch.setattr(entry.sites, "SIM", site)
-    monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
+    fly_in_main(entry, monkeypatch, site, FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
     assert calls == ["constructed", "connected", "started", "disconnected"]
@@ -290,8 +299,7 @@ async def test_a_fresh_run_archives_the_last_runs_outputs_and_a_resume_keeps_the
         async def disconnect(self):
             pass
 
-    monkeypatch.setattr(entry.sites, "SIM", site)
-    monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
+    fly_in_main(entry, monkeypatch, site, FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
     assert frame.exists() is resume
@@ -324,8 +332,7 @@ async def test_main_disconnects_even_when_the_mission_fails(site, drone, monkeyp
         async def disconnect(self):
             calls.append("disconnected")
 
-    monkeypatch.setattr(entry.sites, "SIM", site)
-    monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
+    fly_in_main(entry, monkeypatch, site, FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", FailingMission)
     with pytest.raises(RuntimeError):
         await entry.main(resume=False)

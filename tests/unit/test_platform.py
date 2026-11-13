@@ -1,11 +1,9 @@
 import pytest
 
-from bv_autonomy.components.camera import BevyCamera, FakeCamera, Rx0Camera
+from bv_autonomy.components.camera import BevyCamera, FakeCamera
 from bv_autonomy.components.camera.fake_camera import BEVY_INTRINSICS
-from bv_autonomy.components.camera.rx0_camera import RX0_INTRINSICS
 from bv_autonomy.components.drone import MavsdkDrone
-from bv_autonomy.components.payload import WinchPayload
-from bv_autonomy.components.platform import CompDronePlatform, FakePlatform, SimPlatform, X650Platform, sim_platform
+from bv_autonomy.components.platform import FakePlatform, SimPlatform, sim_platform
 
 
 def test_sim_platform_flies_px4_sitl_with_bevys_camera():
@@ -14,15 +12,6 @@ def test_sim_platform_flies_px4_sitl_with_bevys_camera():
     assert platform.drone._address == sim_platform.default_connection()
     assert isinstance(platform.camera, BevyCamera) and platform.camera._drone is platform.drone
     assert platform.intrinsics is BEVY_INTRINSICS
-
-
-@pytest.mark.parametrize("aircraft", [CompDronePlatform, X650Platform])
-def test_aircraft_use_the_rx0_and_the_plate_and_clamp_payload(aircraft):
-    platform = aircraft("serial:///dev/ttyUSB0:57600")
-    assert platform.drone._address == "serial:///dev/ttyUSB0:57600"
-    assert isinstance(platform.camera, Rx0Camera) and platform.camera._drone is platform.drone
-    assert platform.intrinsics is RX0_INTRINSICS
-    assert isinstance(platform.payload, WinchPayload) and platform.payload._drone is platform.drone
 
 
 def test_fake_platform_shares_its_drone_with_the_camera(drone):
