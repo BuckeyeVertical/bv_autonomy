@@ -239,7 +239,7 @@ async def test_main_saves_selected_state_before_connect(site, drone, monkeypatch
         async def disconnect(self):
             calls.append("disconnected")
 
-    monkeypatch.setattr(entry, "SIM", site)
+    monkeypatch.setattr(entry.sites, "SIM", site)
     monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
@@ -290,7 +290,7 @@ async def test_a_fresh_run_archives_the_last_runs_outputs_and_a_resume_keeps_the
         async def disconnect(self):
             pass
 
-    monkeypatch.setattr(entry, "SIM", site)
+    monkeypatch.setattr(entry.sites, "SIM", site)
     monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", StandInMission)
     await entry.main(resume=resume)
@@ -324,7 +324,7 @@ async def test_main_disconnects_even_when_the_mission_fails(site, drone, monkeyp
         async def disconnect(self):
             calls.append("disconnected")
 
-    monkeypatch.setattr(entry, "SIM", site)
+    monkeypatch.setattr(entry.sites, "SIM", site)
     monkeypatch.setattr(entry, "SimPlatform", lambda: FakePlatform(drone))
     monkeypatch.setattr(entry, "Suas2026", FailingMission)
     with pytest.raises(RuntimeError):

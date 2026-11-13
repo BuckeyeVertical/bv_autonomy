@@ -22,10 +22,7 @@ See [hardware tests](../tests/hardware.md) and [telemetry echo](../tests/echo.md
 
 ## 3. Switch main to the aircraft
 
-In `bv_autonomy/missions/suas2026/__main__.py`, change the platform line from
-`SimPlatform()` to the aircraft you're flying, and import it from
-`bv_autonomy.components.platform`:
-
+In `bv_autonomy/missions/suas2026/__main__.py`, change the platform
 ```python
 platform = CompDronePlatform()
 ```
@@ -36,10 +33,14 @@ or
 platform = X650Platform()
 ```
 
-The mission also flies `SIM` from `sites.py`. Make sure that site is the field you're
-flying at.
+## 4. Change the site
 
-## 4. Run the mission
+In the same file, change the site to one from `sites.py`
+```python
+site = sites.GLACIER
+```
+
+## 5. Run the mission
 
 On the Jetson:
 

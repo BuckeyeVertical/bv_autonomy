@@ -4,8 +4,7 @@ import asyncio
 from bv_autonomy import paths
 from bv_autonomy.components.platform import SimPlatform
 from bv_autonomy.missions.base import start_logging
-from bv_autonomy.missions.suas2026 import MissionState, Suas2026
-from bv_autonomy.missions.suas2026.sites import SIM
+from bv_autonomy.missions.suas2026 import MissionState, Suas2026, sites
 
 
 async def main(resume: bool):
@@ -13,9 +12,10 @@ async def main(resume: bool):
         paths.archive_outputs(paths.SUAS2026_OUTPUT)
     start_logging(paths.SUAS2026_OUTPUT / "logs")
     platform = SimPlatform()
-    state = MissionState.load() if resume else MissionState.new(SIM, platform.intrinsics)
+    site = sites.SIM
+    state = MissionState.load() if resume else MissionState.new(site, platform.intrinsics)
     state.save()
-    mission = Suas2026(SIM, state, platform)
+    mission = Suas2026(site, state, platform)
     try:
         await mission.connect(resuming=resume)
         await mission.start()
