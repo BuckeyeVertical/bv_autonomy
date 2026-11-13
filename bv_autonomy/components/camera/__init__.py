@@ -1,7 +1,7 @@
 from .base import Camera
 from .fake_camera import FakeCamera
 
-__all__ = ["Camera", "FakeCamera", "BevyCamera", "GstreamerCamera", "Rx0Camera"]
+__all__ = ["Camera", "FakeCamera", "BevyCamera", "GstreamerCamera", "Rx0Camera", "SiyiA8Camera"]
 
 
 def __getattr__(name: str):
@@ -17,4 +17,8 @@ def __getattr__(name: str):
         from .rx0_camera import Rx0Camera
 
         return Rx0Camera
+    if name == "SiyiA8Camera":
+        from .siyi_a8_camera import SiyiA8Camera
+
+        return SiyiA8Camera
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -53,6 +53,7 @@ grep -q "bv_autonomy uv guard" ~/.bashrc 2>/dev/null || cat >> ~/.bashrc <<'BASH
 
 # bv_autonomy uv guard: syncing would replace the Jetson's torch, OpenCV and numpy (docs/setup/jetson.md)
 export UV_NO_SYNC=1
+export UV_PYTHON=3.10
 uv() {
     if [ "$1" = sync ] || [ "$1" = lock ]; then
         echo "uv $1 is blocked on the Jetson; see docs/setup/jetson.md" >&2
