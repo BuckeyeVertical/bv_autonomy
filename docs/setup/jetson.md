@@ -6,7 +6,8 @@ JetPack's OpenCV, which can read the camera through GStreamer.
 Don't run `uv sync` here. It makes the venv match a `uv.lock`, which would have PyPI's
 torch, OpenCV and numpy 2 instead of the Jetson builds, and removes every extra. `uv run`
 would sync too, upgrading numpy to 2, so the setup script sets `UV_NO_SYNC=1` in
-`~/.bashrc` to stop it. Change packages with `uv pip install`.
+`~/.bashrc` to stop it and makes `uv sync` and `uv lock` refuse to run. Change packages with
+`uv pip install`.
 
 ## 1. Install uv and clone
 

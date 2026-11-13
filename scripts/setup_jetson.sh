@@ -48,8 +48,19 @@ CUDSS="$(find "$SITE/nvidia" -name 'libcudss.so.0' | head -1)"
 [ -n "$CUDSS" ] || fail "libcudss.so.0 not found after installing nvidia-cudss-cu12"
 ln -sf "$(realpath "$CUDSS")" "$SITE/torch/lib/libcudss.so.0"
 
-step "uv run without syncing"
-grep -q "UV_NO_SYNC=1" ~/.bashrc 2>/dev/null || echo "export UV_NO_SYNC=1" >> ~/.bashrc
+step "uv run without syncing, and uv sync and uv lock blocked"
+grep -q "bv_autonomy uv guard" ~/.bashrc 2>/dev/null || cat >> ~/.bashrc <<'BASHRC'
+
+# bv_autonomy uv guard: syncing would replace the Jetson's torch, OpenCV and numpy (docs/setup/jetson.md)
+export UV_NO_SYNC=1
+uv() {
+    if [ "$1" = sync ] || [ "$1" = lock ]; then
+        echo "uv $1 is blocked on the Jetson; see docs/setup/jetson.md" >&2
+        return 1
+    fi
+    command uv "$@"
+}
+BASHRC
 
 step "checks"
 "$PY" -c "import torch; assert torch.cuda.is_available(), 'torch has no CUDA'; print('torch', torch.__version__, 'on', torch.cuda.get_device_name(0))"

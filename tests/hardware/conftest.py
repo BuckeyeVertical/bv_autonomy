@@ -1,23 +1,35 @@
 """Checks of the real components, run by hand and never in CI: pytest tests/hardware -s"""
 
+import logging
 import os
 import sys
 
 import cv2
 import pytest
 import pytest_asyncio
+from mavsdk import log_subscribe
 from mavsdk.asyncio import ComponentType, Configuration, Mavsdk
 from mavsdk.asyncio.plugins.telemetry import TelemetryAsync
 
 from bv_autonomy import paths
 from bv_autonomy.components.detector import LtdetrDetector
 from bv_autonomy.components.drone import FakeDrone
+from bv_autonomy.components.drone.mavsdk_drone import _forward_mavsdk_log
 from bv_autonomy.components.platform import CompDronePlatform, SimPlatform, X650Platform
 from bv_autonomy.missions.suas2026.suas2026 import DETECTION_THRESHOLDS
 from bv_autonomy.types import Waypoint
 
 PLATFORMS = {"comp_drone": CompDronePlatform, "x650": X650Platform, "sim": SimPlatform}
 WINDOW_MAX = (1280, 720)
+OPENCV_LOG_ERROR = 2
+
+(getattr(cv2, "setLogLevel", None) or cv2.utils.logging.setLogLevel)(OPENCV_LOG_ERROR)
+logging.getLogger("torch.utils.flop_counter").setLevel(logging.ERROR)
+
+
+def pytest_configure(config):
+    """Hides library warnings so a passing check prints only what it found."""
+    config.addinivalue_line("filterwarnings", "ignore")
 
 
 def pytest_addoption(parser):
@@ -35,6 +47,7 @@ def platform(pytestconfig):
 @pytest_asyncio.fixture
 async def telemetry(platform):
     """PX4's telemetry from the platform's address, without waiting for a GPS fix like the mission does."""
+    log_subscribe(_forward_mavsdk_log)
     mavsdk = Mavsdk(Configuration.create_with_component_type(ComponentType.GROUND_STATION))
     await mavsdk.add_any_connection(platform.drone._address)
     system = await mavsdk.first_autopilot(timeout_s=30.0)
