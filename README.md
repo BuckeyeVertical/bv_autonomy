@@ -47,9 +47,9 @@ npm run build
 
 ## Hardware checks
 
-Before a flight, check the Pixhawk, camera and detector on the aircraft (or on the simulator
-with `--platform sim`). Each check prints what it found and shows the camera frame or
-detections in a window, also saved under `output/`:
+Before a flight, check the Pixhawk, camera and detector on the competition drone, or pass
+`--platform x650` or `--platform sim` for the simulator. Each check prints what it found and
+shows the camera frame or detections in a window, also saved under `output/`:
 
 ```bash
 pytest hardware_tests -s

@@ -15,7 +15,7 @@ Run Python with the repo's venv (`.venv/bin/python`, or `uv run`).
 
 Tests: install `.[dev,gcs,mavsdk,localizer,opencv,stitcher,terrain]`, then run `.venv/bin/python -m pytest`.
 
-Hardware checks (Pixhawk, camera, detector), run by hand, never in CI: `.venv/bin/python -m pytest hardware_tests -s` (`--platform sim` for bv_bevy).
+Hardware checks (Pixhawk, camera, detector), run by hand, never in CI: `.venv/bin/python -m pytest hardware_tests -s` (`--platform x650|sim` for the X650 or bv_bevy).
 
 Every component has a fake next to its real implementations (`FakeDrone`, `FakeCamera`,
 `FakeDetector`, `FakePayload`, `FakeStitcher`, `NullGcs`, `FakePlatform`). Use them to run mission logic on

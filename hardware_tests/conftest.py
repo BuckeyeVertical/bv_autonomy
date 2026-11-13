@@ -8,28 +8,26 @@ import pytest
 import pytest_asyncio
 
 from bv_autonomy import paths
-from bv_autonomy.components.camera import BevyCamera, Rx0Camera
 from bv_autonomy.components.detector import LtdetrDetector
 from bv_autonomy.components.drone import FakeDrone
-from bv_autonomy.components.platform import PhysicalPlatform, SimPlatform
+from bv_autonomy.components.platform import CompDronePlatform, SimPlatform, X650Platform
 from bv_autonomy.missions.suas2026.suas2026 import DETECTION_THRESHOLDS
 from bv_autonomy.types import Waypoint
 
+PLATFORMS = {"comp_drone": CompDronePlatform, "x650": X650Platform, "sim": SimPlatform}
 WINDOW_MAX = (1280, 720)
 
 
 def pytest_addoption(parser):
-    parser.addoption("--platform", choices=["sim", "real"], default="real",
-                     help="what to check: bv_bevy's simulator or the aircraft")
+    parser.addoption("--platform", choices=list(PLATFORMS), default="comp_drone",
+                     help="which aircraft to check, or sim for bv_bevy's simulator")
     parser.addoption("--image", help="an image for the detector to run on instead of a camera frame")
     parser.addoption("--no-show", action="store_true", help="save images without opening a window")
 
 
 @pytest.fixture
 def platform(pytestconfig):
-    if pytestconfig.getoption("--platform") == "sim":
-        return SimPlatform()
-    return PhysicalPlatform()
+    return PLATFORMS[pytestconfig.getoption("--platform")]()
 
 
 @pytest_asyncio.fixture
@@ -41,15 +39,14 @@ async def drone(platform):
 
 
 @pytest_asyncio.fixture
-async def camera(pytestconfig):
+async def camera(platform, monkeypatch):
     """The platform's camera on its own, started, with frames stamped with a fixed pose instead of the
     Pixhawk's, so it runs without the drone connected.
     """
-    stand_in = FakeDrone(Waypoint(0.0, 0.0, 0.0))
-    camera = BevyCamera(stand_in) if pytestconfig.getoption("--platform") == "sim" else Rx0Camera(stand_in)
-    await camera.start()
-    yield camera
-    await camera.stop()
+    monkeypatch.setattr(platform.drone, "pose", FakeDrone(Waypoint(0.0, 0.0, 0.0)).pose)
+    await platform.camera.start()
+    yield platform.camera
+    await platform.camera.stop()
 
 
 @pytest_asyncio.fixture
